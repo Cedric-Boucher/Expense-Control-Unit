@@ -1,2 +1,17 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<script>
+	import { onMount } from "svelte";
+
+    let healthMessage = 'Loading...';
+
+    onMount(async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/health');
+            healthMessage = await res.text();
+        } catch (e) {
+            healthMessage = 'Failed to connect to backend';
+        }
+    });
+</script>
+
+<h1>My Finance Tracker</h1>
+<p>Backend status: {healthMessage}</p>
