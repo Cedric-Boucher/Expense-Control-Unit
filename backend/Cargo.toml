@@ -1,6 +1,15 @@
 [package]
 name = "backend"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
+argon2 = "0.5.3"
+axum = "0.8.4"
+dotenv = "0.15.0"
+jsonwebtoken = "9.3.1"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.141"
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "macros"] }
+tokio = { version = "1.46.1", features = ["full"] }
+tower-cookies = "0.11.0"
