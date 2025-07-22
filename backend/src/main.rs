@@ -1,25 +1,12 @@
 use std::{env, net::SocketAddr};
 
-use axum::{http::StatusCode, response::IntoResponse, routing::get, Router, Json};
+use axum::Router;
 use tower_http::cors::{CorsLayer, Any};
 use dotenv::dotenv;
-use serde::Serialize;
 
-#[derive(Serialize)]
-struct Transaction {
-    id: u32,
-    description: String,
-    amount: i32
-}
-
-async fn list_transactions() -> Json<Vec<Transaction>> {
-    let sample_data = vec![
-        Transaction { id: 1, description: "Sample".into(), amount: -156 },
-        Transaction { id: 2, description: "Test".into(), amount: 843 },
-    ];
-
-    Json(sample_data)
-}
+mod routes;
+mod models;
+use routes::{health, transactions};
 
 
 #[tokio::main]
@@ -32,8 +19,8 @@ async fn main() {
         .allow_headers(Any);
 
     let app = Router::new()
-        .route("/api/health", get(health_check))
-        .route("/api/transactions", get(list_transactions))
+        .merge(health::routes())
+        .merge(transactions::routes())
         .layer(cors);
 
     let port = env::var("PORT").unwrap_or_else(|_| "8000".to_string());
@@ -42,8 +29,4 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn health_check() -> impl IntoResponse {
-    (StatusCode::OK, "Backend is healthy")
 }
