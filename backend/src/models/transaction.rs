@@ -1,8 +1,8 @@
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Serialize, sqlx::FromRow)]
 pub struct Transaction {
-    pub id: u32,
+    pub id: i32,
     pub description: String,
-    pub amount: i32
+    pub amount: f64
 }
