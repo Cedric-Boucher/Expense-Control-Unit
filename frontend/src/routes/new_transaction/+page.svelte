@@ -36,31 +36,29 @@
 	}
 </script>
 
-<h1>New Transaction</h1>
+<h1 class="text-2xl font-bold mb-4">New Transaction</h1>
 
-<form on:submit|preventDefault={submit} class="form">
+<form on:submit|preventDefault={submit} class="space-y-4 max-w-md">
 	<div>
-		<label for="desc">Description</label>
-		<input id="desc" bind:value={description} placeholder="e.g., Coffee" />
+		<label for="desc" class="block font-medium">Description</label>
+		<input id="desc" bind:value={description} class="w-full p-2 border rounded" />
 	</div>
 
 	<div>
-		<label for="amt">Amount (use negative for expenses)</label>
-		<input id="amt" type="number" step="0.01" bind:value={amount} />
+		<label for="amt" class="block font-medium">Amount</label>
+		<input id="amt" type="number" step="0.01" bind:value={amount} class="w-full p-2 border rounded" />
 	</div>
 
 	<div>
-		<label for="time">Custom Timestamp (optional)</label>
-		<input
-			id="time"
-			type="datetime-local"
-			bind:value={timestamp}
-		/>
+		<label for="time" class="block font-medium">Timestamp (optional)</label>
+		<input id="time" type="datetime-local" bind:value={timestamp} class="w-full p-2 border rounded" />
 	</div>
 
-	<button type="submit">Submit</button>
+	<button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+		Submit
+	</button>
 
 	{#if error}
-		<p style="color: red">{error}</p>
+		<p class="text-red-600">{error}</p>
 	{/if}
 </form>

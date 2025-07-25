@@ -11,18 +11,18 @@
     });
 </script>
 
-<h1>Transactions</h1>
+<h1 class="text-2xl font-bold mb-4">Transactions</h1>
 
 {#if transactions.length}
-    <ul>
+    <ul class="space-y-4">
         {#each transactions as tx}
-            <li>
-				<strong>{tx.description}</strong> — ${tx.amount}  
-				<br />
-				<small>{formatTimestampLocal(tx.created_at)}</small>
+            <li class="bg-white shadow rounded p-4">
+				<div class="text-lg font-medium">{tx.description}</div>
+				<div class="text-green-600 font-bold">${tx.amount}</div>
+				<div class="text-gray-500 text-sm">{formatTimestampLocal(tx.created_at)}</div>
 			</li>
         {/each}
     </ul>
 {:else}
-    <p>No transactions found.</p>
+    <p class="text-gray-500 italic">No transactions found.</p>
 {/if}
