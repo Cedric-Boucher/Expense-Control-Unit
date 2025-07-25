@@ -2,6 +2,7 @@
 	import { getTransactions } from '$lib/api';
 	import type { Transaction } from '$lib/types';
     import { onMount } from 'svelte';
+    import { formatTimestampLocal } from '$lib/utils';
 
     let transactions: Transaction[] = [];
 
@@ -15,7 +16,11 @@
 {#if transactions.length}
     <ul>
         {#each transactions as tx}
-            <li>{tx.description} - ${tx.amount}</li>
+            <li>
+				<strong>{tx.description}</strong> — ${tx.amount}  
+				<br />
+				<small>{formatTimestampLocal(tx.created_at)}</small>
+			</li>
         {/each}
     </ul>
 {:else}
