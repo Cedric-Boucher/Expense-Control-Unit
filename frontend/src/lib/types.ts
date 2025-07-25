@@ -1,7 +1,7 @@
 export type Transaction = {
-	id: number;
-	description: string;
-	amount: number;
+    id: number;
+    description: string;
+    amount: number;
     created_at: string;
 };
 

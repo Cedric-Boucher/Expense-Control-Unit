@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { getTransactions } from '$lib/api';
-	import type { Transaction } from '$lib/types';
+    import { getTransactions } from '$lib/api';
+    import type { Transaction } from '$lib/types';
     import { onMount } from 'svelte';
     import { formatTimestampLocal } from '$lib/utils';
 
@@ -17,10 +17,10 @@
     <ul class="space-y-4">
         {#each transactions as tx}
             <li class="bg-white shadow rounded p-4">
-				<div class="text-lg font-medium">{tx.description}</div>
-				<div class="text-green-600 font-bold">${tx.amount}</div>
-				<div class="text-gray-500 text-sm">{formatTimestampLocal(tx.created_at)}</div>
-			</li>
+                <div class="text-lg font-medium">{tx.description}</div>
+                <div class="text-green-600 font-bold">${tx.amount}</div>
+                <div class="text-gray-500 text-sm">{formatTimestampLocal(tx.created_at)}</div>
+            </li>
         {/each}
     </ul>
 {:else}
