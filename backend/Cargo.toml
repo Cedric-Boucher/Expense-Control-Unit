@@ -7,11 +7,12 @@ edition = "2024"
 argon2 = "0.5.3"
 axum = "0.8.4"
 bigdecimal = "0.4.8"
+chrono = { version = "0.4.41", features = ["serde", "clock"] }
 dotenv = "0.15.0"
 jsonwebtoken = "9.3.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
-sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "macros", "bigdecimal"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "macros", "bigdecimal", "time"] }
 tokio = { version = "1.46.1", features = ["full"] }
 tower-cookies = "0.11.0"
 tower-http = { version = "0.6.6", features = ["cors"] }
