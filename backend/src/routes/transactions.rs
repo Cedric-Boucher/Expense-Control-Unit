@@ -37,16 +37,17 @@ pub async fn create_transaction(
 ) -> Json<Transaction> {
     let record = sqlx::query!(
         r#"
-        INSERT INTO transactions (description, amount)
-        VALUES ($1, $2)
+        INSERT INTO transactions (description, amount, created_at)
+        VALUES ($1, $2, COALESCE($3, now()))
         RETURNING id, description, amount, created_at
         "#,
         payload.description,
-        BigDecimal::from_f64(payload.amount)
+        BigDecimal::from_f64(payload.amount),
+        payload.created_at.map(convert_chrono_to_time)
     )
     .fetch_one(&pool)
     .await
-    .expect("Failed te insert transaction");
+    .expect("Failed to insert transaction");
 
     let result = Transaction {
         id: record.id,
@@ -63,4 +64,11 @@ fn convert_time_to_chrono(dt: OffsetDateTime) -> DateTime<Utc> {
     let nanosecond = dt.nanosecond();
 
     Utc.timestamp_opt(timestamp, nanosecond).unwrap()
+}
+
+fn convert_chrono_to_time(dt: DateTime<Utc>) -> OffsetDateTime {
+    let timestamp = dt.timestamp();
+    let nanosecond = dt.timestamp_subsec_nanos();
+
+    OffsetDateTime::from_unix_timestamp_nanos(timestamp as i128 * 1_000_000_000 + nanosecond as i128).expect("Valid timestamp")
 }

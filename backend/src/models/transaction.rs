@@ -13,4 +13,5 @@ pub struct Transaction {
 pub struct NewTransaction {
     pub description: String,
     pub amount: f64,
+    pub created_at: Option<DateTime<Utc>>,
 }
