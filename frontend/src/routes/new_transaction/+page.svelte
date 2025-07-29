@@ -1,18 +1,24 @@
 <script lang="ts">
+    import { auth } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
     import { createTransaction } from '$lib/api';
     import type { NewTransaction } from '$lib/types';
+	import { onMount } from 'svelte';
 
     let description = '';
     let amount: number | '' = '';
     let timestamp: string = ''; // ISO 8601 string
 
     let error = '';
-    let success = false;
+
+    onMount(() => {
+        if (!$auth.isLoggedIn) {
+            goto('/login');
+        }
+    });
 
     async function submit() {
         error = '';
-        success = false;
 
         if (!description || !amount) {
             error = 'Description and amount are required.';
@@ -27,7 +33,6 @@
 
         try {
             await createTransaction(payload);
-            success = true;
             goto('/transactions');
         } catch (e) {
             error = 'Failed to submit transaction.';

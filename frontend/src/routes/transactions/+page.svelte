@@ -1,10 +1,18 @@
 <script lang="ts">
+    import { auth } from '$lib/stores/auth';
+    import { goto } from '$app/navigation';
     import { getTransactions } from '$lib/api';
     import type { Transaction } from '$lib/types';
     import { onMount } from 'svelte';
     import { formatTimestampLocal } from '$lib/utils';
 
     let transactions: Transaction[] = [];
+
+    onMount(() => {
+        if (!$auth.isLoggedIn) {
+            goto('/login');
+        }
+    });
 
     onMount(async () => {
         transactions = await getTransactions()

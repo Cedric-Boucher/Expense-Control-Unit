@@ -1,20 +1,24 @@
-use axum::{routing::get, Extension, Json, Router};
-use chrono::{DateTime, TimeZone, Utc};
-use sqlx::{types::time::OffsetDateTime, PgPool};
-use crate::models::transaction::{NewTransaction, Transaction};
+use axum::{response::IntoResponse, routing::get, Extension, Json, Router};
+use sqlx::PgPool;
+use crate::{middleware::AuthSession, models::transaction::{NewTransaction, Transaction}, time_conversion::{convert_chrono_to_time, convert_time_to_chrono}};
 use bigdecimal::{BigDecimal, ToPrimitive, FromPrimitive};
 
 pub fn routes() -> Router {
     Router::new().route("/api/transactions", get(list_transactions).post(create_transaction))
 }
 
-async fn list_transactions(Extension(pool): Extension<PgPool>) -> Json<Vec<Transaction>> {
-    let rows = sqlx::query!(
+async fn list_transactions(
+    Extension(pool): Extension<PgPool>,
+    AuthSession(user): AuthSession,
+) -> impl IntoResponse {
+    let rows: Vec<Transaction> = sqlx::query!(
         r#"
         SELECT id, description, amount, created_at
         FROM transactions
+        WHERE user_id = $1
         ORDER BY id DESC
-        "#
+        "#,
+        user.id
     )
     .fetch_all(&pool)
     .await
@@ -33,14 +37,16 @@ async fn list_transactions(Extension(pool): Extension<PgPool>) -> Json<Vec<Trans
 
 pub async fn create_transaction(
     Extension(pool): Extension<PgPool>,
+    AuthSession(user): AuthSession,
     Json(payload): Json<NewTransaction>,
 ) -> Json<Transaction> {
     let record = sqlx::query!(
         r#"
-        INSERT INTO transactions (description, amount, created_at)
-        VALUES ($1, $2, COALESCE($3, now()))
+        INSERT INTO transactions (user_id, description, amount, created_at)
+        VALUES ($1, $2, $3, COALESCE($4, now()))
         RETURNING id, description, amount, created_at
         "#,
+        user.id,
         payload.description,
         BigDecimal::from_f64(payload.amount),
         payload.created_at.map(convert_chrono_to_time)
@@ -57,18 +63,4 @@ pub async fn create_transaction(
     };
 
     Json(result)
-}
-
-fn convert_time_to_chrono(dt: OffsetDateTime) -> DateTime<Utc> {
-    let timestamp = dt.unix_timestamp();
-    let nanosecond = dt.nanosecond();
-
-    Utc.timestamp_opt(timestamp, nanosecond).unwrap()
-}
-
-fn convert_chrono_to_time(dt: DateTime<Utc>) -> OffsetDateTime {
-    let timestamp = dt.timestamp();
-    let nanosecond = dt.timestamp_subsec_nanos();
-
-    OffsetDateTime::from_unix_timestamp_nanos(timestamp as i128 * 1_000_000_000 + nanosecond as i128).expect("Valid timestamp")
 }

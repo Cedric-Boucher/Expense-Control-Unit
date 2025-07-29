@@ -1,13 +1,17 @@
 use std::{env, net::SocketAddr};
 
-use axum::{Extension, Router};
-use tower_http::cors::{CorsLayer, Any};
+use axum::{http::{header, HeaderValue, Method}, Extension, Router};
+use tower_cookies::CookieManagerLayer;
+use tower_http::cors::CorsLayer;
 use dotenv::dotenv;
 
 mod routes;
 mod db;
 mod models;
-use routes::{health, transactions};
+mod passwords;
+mod time_conversion;
+mod middleware;
+use routes::{me, transactions, signup, login, logout};
 use db::init_db_pool;
 
 
@@ -18,14 +22,27 @@ async fn main() {
     let db = init_db_pool().await;
 
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::OPTIONS,
+        ])
+        .allow_headers([
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+            header::ACCEPT,
+        ])
+        .allow_credentials(true);
 
     let app = Router::new()
-        .merge(health::routes())
+        .merge(me::routes())
         .merge(transactions::routes())
+        .merge(signup::routes())
+        .merge(login::routes())
+        .merge(logout::routes())
         .layer(Extension(db))
+        .layer(CookieManagerLayer::new())
         .layer(cors);
 
     let port = env::var("PORT").unwrap_or_else(|_| "8000".to_string());
