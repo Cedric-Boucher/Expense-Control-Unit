@@ -11,5 +11,28 @@ services:
     ports:
       - "5432:5432"
 
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgres://finance_user:finance_pass@db:5432/finance_db
+      - PORT=8000
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    command: sh -c "./backend"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
 volumes:
   db_data:

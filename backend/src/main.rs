@@ -1,6 +1,7 @@
 use std::{env, net::SocketAddr};
 
 use axum::{http::{header, HeaderValue, Method}, Extension, Router};
+use sqlx::migrate::Migrator;
 use tower_cookies::CookieManagerLayer;
 use tower_http::cors::CorsLayer;
 use dotenv::dotenv;
@@ -14,12 +15,14 @@ mod middleware;
 use routes::{me, transactions, signup, login, logout};
 use db::init_db_pool;
 
+static MIGRATOR: Migrator = sqlx::migrate!();
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
 
     let db = init_db_pool().await;
+    MIGRATOR.run(&db).await.expect("Failed to run migrations");
 
     let cors = CorsLayer::new()
         .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())

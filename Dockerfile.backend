@@ -1,0 +1,19 @@
+# Dockerfile.backend
+FROM rust:1.88 AS builder
+
+WORKDIR /app
+COPY backend/ .
+
+ENV SQLX_OFFLINE=true
+
+RUN cargo build --release
+
+FROM debian:bookworm-slim
+
+WORKDIR /app
+COPY --from=builder /app/target/release/backend /app/backend
+COPY backend/migrations /app/migrations
+
+ENV RUST_LOG=info
+
+CMD ["./backend"]
