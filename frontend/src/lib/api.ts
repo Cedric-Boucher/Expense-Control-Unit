@@ -1,6 +1,6 @@
 import { goto } from "$app/navigation";
 import { auth } from "./stores/auth";
-import type { Transaction, NewTransaction, NewUser, User } from "./types";
+import type { Transaction, NewTransaction, NewUser, User, Category, NewCategory } from "./types";
 
 const API_BASE = 'http://localhost:8000';
 
@@ -90,3 +90,26 @@ export async function load_user(): Promise<{user: User | null}> {
         return { user: null };
     }
 };
+
+export async function getCategories(): Promise<Category[]> {
+    const res = await fetch(`${API_BASE}/api/categories`, {
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to fetch categories');
+    return await res.json();
+}
+
+export async function createCategory(payload: NewCategory): Promise<Category> {
+    const res = await fetch(`${API_BASE}/api/categories`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+    });
+
+    if (!res.ok) {
+        throw new Error('Failed to create category');
+    }
+
+    return await res.json();
+}

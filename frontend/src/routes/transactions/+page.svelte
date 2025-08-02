@@ -25,8 +25,13 @@
     <ul class="space-y-4">
         {#each transactions as tx}
             <li class="bg-white dark:bg-gray-800 shadow rounded p-4">
-                <div class="text-lg font-medium">{tx.description}</div>
-                <div class="text-green-600 font-bold">${tx.amount}</div>
+                <div class="text-2xl font-bold">{tx.description}</div>
+                <div class="font-medium">{tx.category.name}</div>
+                {#if tx.amount > 0}
+                    <div class="text-green-600 font-bold text-xl">${tx.amount}</div>
+                {:else}
+                    <div class="text-red-600 font-bold text-xl">${tx.amount}</div>
+                {/if}
                 <div class="text-gray-500 text-sm">{formatTimestampLocal(tx.created_at)}</div>
             </li>
         {/each}

@@ -1,5 +1,6 @@
 export type Transaction = {
     id: number;
+    category: Category;
     description: string;
     amount: number;
     created_at: string;
@@ -7,6 +8,7 @@ export type Transaction = {
 
 export type NewTransaction = {
     description: string;
+    category_id: number;
     amount: number;
     created_at?: string;
 };
@@ -22,3 +24,13 @@ export type User = {
     password_hash: string;
     created_at: string;
 };
+
+export type Category = {
+    id: number;
+    name: string;
+    created_at: string;
+}
+
+export type NewCategory = {
+    name: string;
+}

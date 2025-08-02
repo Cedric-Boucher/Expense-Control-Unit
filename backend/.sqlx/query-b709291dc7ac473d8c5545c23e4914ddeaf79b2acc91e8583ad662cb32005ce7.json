@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO transactions (user_id, description, amount, created_at)\n        VALUES ($1, $2, $3, COALESCE($4, now()))\n        RETURNING id, description, amount, created_at\n        ",
+  "query": "\n        INSERT INTO transactions (user_id, category_id, description, amount, created_at)\n        VALUES ($1, $2, $3, $4, COALESCE($5, now()))\n        RETURNING id, category_id, description, amount, created_at\n        ",
   "describe": {
     "columns": [
       {
@@ -10,16 +10,21 @@
       },
       {
         "ordinal": 1,
+        "name": "category_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
         "name": "description",
         "type_info": "Text"
       },
       {
-        "ordinal": 2,
+        "ordinal": 3,
         "name": "amount",
         "type_info": "Numeric"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "created_at",
         "type_info": "Timestamptz"
       }
@@ -27,6 +32,7 @@
     "parameters": {
       "Left": [
         "Uuid",
+        "Int4",
         "Text",
         "Numeric",
         "Timestamptz"
@@ -36,8 +42,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "04336054f465dc49e2db635422592bb4609255ba25389a2825ade3a896835281"
+  "hash": "b709291dc7ac473d8c5545c23e4914ddeaf79b2acc91e8583ad662cb32005ce7"
 }

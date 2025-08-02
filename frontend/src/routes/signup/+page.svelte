@@ -1,9 +1,9 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-	import { signup } from '$lib/api';
+    import { signup } from '$lib/api';
     import { auth } from '$lib/stores/auth';
-	import type { NewUser } from '$lib/types';
-	import { onMount } from 'svelte';
+    import type { NewUser } from '$lib/types';
+    import { onMount } from 'svelte';
 
     let username = '';
     let password = '';

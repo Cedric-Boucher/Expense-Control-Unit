@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, description, amount, created_at\n        FROM transactions\n        WHERE user_id = $1\n        ORDER BY id DESC\n        ",
+  "query": "\n        INSERT INTO categories (user_id, name)\n        VALUES ($1, $2)\n        RETURNING id, name, created_at\n        ",
   "describe": {
     "columns": [
       {
@@ -10,31 +10,26 @@
       },
       {
         "ordinal": 1,
-        "name": "description",
+        "name": "name",
         "type_info": "Text"
       },
       {
         "ordinal": 2,
-        "name": "amount",
-        "type_info": "Numeric"
-      },
-      {
-        "ordinal": 3,
         "name": "created_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Text"
       ]
     },
     "nullable": [
       false,
       false,
-      false,
       false
     ]
   },
-  "hash": "697d96d71d5f690cfdd7c090ebad1f467e6a0e85cf587a7f2833c444372d85e9"
+  "hash": "3b089ce0041e6a3eb42ec2b2a3ea42f66e2ce6e8a034abfc13821ac4d54e0aa8"
 }
