@@ -113,3 +113,19 @@ export async function createCategory(payload: NewCategory): Promise<Category> {
 
     return await res.json();
 }
+
+export async function getTransaction(id: string): Promise<Transaction> {
+    const res = await fetch(`${API_BASE}/api/transactions/${id}`, {
+        credentials: 'include'
+    });
+    return await res.json();
+}
+
+export async function updateTransaction(id: string, data: Transaction) {
+    await fetch(`${API_BASE}/api/transactions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include'
+    });
+}

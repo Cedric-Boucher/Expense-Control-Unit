@@ -33,6 +33,9 @@
                     <div class="text-red-600 font-bold text-xl">${tx.amount}</div>
                 {/if}
                 <div class="text-gray-500 text-sm">{formatTimestampLocal(tx.created_at)}</div>
+                <button type="button" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" on:click={() => (goto(`/transactions/${tx.id}/edit`))}>
+                    Edit
+                </button>
             </li>
         {/each}
     </ul>
