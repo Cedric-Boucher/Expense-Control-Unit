@@ -121,10 +121,10 @@ export async function getTransaction(id: string): Promise<Transaction> {
     return await res.json();
 }
 
-export async function updateTransaction(id: string, data: Transaction) {
+export async function updateTransaction(id: string, data: NewTransaction) {
     await fetch(`${API_BASE}/api/transactions/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify(data),
         credentials: 'include'
     });

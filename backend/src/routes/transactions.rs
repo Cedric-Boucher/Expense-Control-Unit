@@ -18,7 +18,7 @@ async fn list_transactions(
         SELECT id, category_id, description, amount, created_at
         FROM transactions
         WHERE user_id = $1
-        ORDER BY id DESC
+        ORDER BY created_at DESC
         "#,
         user.id
     )

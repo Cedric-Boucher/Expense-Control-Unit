@@ -30,6 +30,7 @@ async fn main() {
             Method::GET,
             Method::POST,
             Method::OPTIONS,
+            Method::PUT,
         ])
         .allow_headers([
             header::AUTHORIZATION,
