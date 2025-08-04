@@ -4,10 +4,12 @@
     import type { Category, NewTransaction, Transaction } from '$lib/types';
     import { derived, get, writable, type Readable } from 'svelte/store';
     import { formatTimestampLocal } from '$lib/utils';
+	import { goto } from '$app/navigation';
 
     export let initial: Partial<Transaction> = {};
     export let onSubmit: (data: NewTransaction) => Promise<void>;
     export let submitLabel = 'Submit';
+    export let showCancel: boolean = false;
 
     const description = writable(initial.description ?? '');
     const amount = writable(initial.amount ?? '');
@@ -81,6 +83,10 @@
             console.error(e);
         }
     }
+
+    function cancel() {
+        goto('/transactions');
+    }
 </script>
 
 <form on:submit|preventDefault={submit} class="space-y-4 max-w-md">
@@ -124,10 +130,19 @@
         <input id="time" type="datetime-local" bind:value={$timestamp} step="1" class="w-full p-2 border rounded" />
     </div>
 
-    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-        {submitLabel}
-    </button>
-
+    <div class="flex space-x-4">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            {submitLabel}
+        </button>
+        {#if showCancel}
+            <button
+                on:click={cancel}
+                class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
+            >
+                Cancel
+            </button>
+        {/if}
+    </div>
     {#if error}
         <p class="text-red-600">{error}</p>
     {/if}
