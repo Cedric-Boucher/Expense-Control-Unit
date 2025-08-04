@@ -4,7 +4,7 @@
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
     import type { Transaction } from '$lib/types';
-    import { formatTimestampLocalForDisplay } from '$lib/utils';
+	import TransactionCard from '$lib/components/TransactionCard.svelte';
 
     let transaction: Transaction | null = null;
     let error = '';
@@ -52,14 +52,7 @@
     <h1 class="text-2xl font-bold mb-4">Delete Transaction</h1>
     <p class="mb-2">Are you sure you want to delete the following transaction?</p>
 
-    <div class="bg-white dark:bg-gray-800 shadow rounded p-4 mb-4">
-        <div class="text-2xl font-bold">{transaction.description}</div>
-        <div class="font-medium">{transaction.category.name}</div>
-        <div class={transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}>
-            ${transaction.amount}
-        </div>
-        <div class="text-gray-500 text-sm">{formatTimestampLocalForDisplay(transaction.created_at)}</div>
-    </div>
+    <TransactionCard {transaction} showActions={false} />
 
     <div class="flex space-x-4">
         <button

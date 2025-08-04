@@ -1,10 +1,10 @@
 <script lang="ts">
+    import { getTransactions } from '$lib/api';
+    import { onMount } from 'svelte';
     import { auth } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
-    import { getTransactions } from '$lib/api';
     import type { Transaction } from '$lib/types';
-    import { onMount } from 'svelte';
-    import { formatTimestampLocalForDisplay } from '$lib/utils';
+    import TransactionCard from '$lib/components/TransactionCard.svelte';
 
     let transactions: Transaction[] = [];
 
@@ -15,7 +15,7 @@
     });
 
     onMount(async () => {
-        transactions = await getTransactions()
+        transactions = await getTransactions();
     });
 </script>
 
@@ -24,37 +24,7 @@
 {#if transactions.length}
     <ul class="space-y-4">
         {#each transactions as tx}
-            <li class="bg-white dark:bg-gray-800 shadow rounded p-4 flex justify-between items-start gap-4">
-                <!-- Left column: transaction details -->
-                <div>
-                    <div class="text-2xl font-bold">{tx.description}</div>
-                    <div class="font-medium">{tx.category.name}</div>
-                    {#if tx.amount > 0}
-                        <div class="text-green-600 font-bold text-xl">${tx.amount}</div>
-                    {:else}
-                        <div class="text-red-600 font-bold text-xl">${tx.amount}</div>
-                    {/if}
-                    <div class="text-gray-500 text-sm">{formatTimestampLocalForDisplay(tx.created_at)}</div>
-                </div>
-
-                <!-- Right column: actions -->
-                <div class="flex flex-col gap-2">
-                    <button
-                        type="button"
-                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                        on:click={() => goto(`/transactions/${tx.id}/edit`)}
-                    >
-                        Edit
-                    </button>
-                    <button
-                        type="button"
-                        class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                        on:click={() => goto(`/transactions/${tx.id}/delete`)}
-                    >
-                        Delete
-                    </button>
-                </div>
-            </li>
+            <TransactionCard transaction={tx} showActions={true} />
         {/each}
     </ul>
 {:else}
