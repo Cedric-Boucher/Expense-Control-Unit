@@ -7,13 +7,14 @@
     import type { Category, NewCategory } from '$lib/types';
 
     let category: Category | null = null;
-    $: id = page.params.id;
+    const id = page.params.id;
+    const redirectTo = page.url.searchParams.get('redirectTo') ?? '/categories';
 
     onMount(async () => {
         if (id) {
             category = await getCategory(id);
         } else {
-            goto('/categories');
+            goto(redirectTo);
         }
     });
 
@@ -21,7 +22,7 @@
         if (id) {
             await updateCategory(id, data);
         }
-        goto('/categories');
+        goto(redirectTo);
     }
 </script>
 

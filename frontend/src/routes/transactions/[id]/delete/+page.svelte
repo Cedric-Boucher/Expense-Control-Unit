@@ -11,10 +11,11 @@
     let loading = true;
 
     const id = page.params.id;
+    const redirectTo = page.url.searchParams.get('redirectTo') ?? '/transactions';
 
     onMount(async () => {
         if (!id) {
-            goto('/transactions');
+            goto(redirectTo);
         } else {
             try {
                 transaction = await getTransaction(id);
@@ -32,7 +33,7 @@
             if (id) {
                 await deleteTransaction(id);
             }
-            goto('/transactions');
+            goto(redirectTo);
         } catch (e) {
             error = 'Failed to delete transaction.';
             console.error(e);
@@ -40,7 +41,7 @@
     }
 
     function cancel() {
-        goto('/transactions');
+        goto(redirectTo);
     }
 </script>
 

@@ -2,6 +2,7 @@
     import type { Transaction } from '$lib/types';
     import { formatTimestampLocalForDisplay } from '$lib/utils';
     import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
     export let transaction: Transaction;
     export let showActions: boolean = true;
@@ -14,7 +15,7 @@
         if (onEdit) {
             onEdit();
         } else {
-            goto(`/transactions/${transaction.id}/edit`);
+            goto(`/transactions/${transaction.id}/edit?redirectTo=${encodeURIComponent(page.url.pathname)}`);
         }
     }
 
@@ -22,7 +23,7 @@
         if (onDelete) {
             onDelete();
         } else {
-            goto(`/transactions/${transaction.id}/delete`);
+            goto(`/transactions/${transaction.id}/delete?redirectTo=${encodeURIComponent(page.url.pathname)}`);
         }
     }
 </script>

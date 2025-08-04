@@ -13,10 +13,11 @@
     let loading = true;
 
     const id = page.params.id;
+    const redirectTo = page.url.searchParams.get('redirectTo') ?? '/categories';
 
     onMount(async () => {
         if (!id) {
-            goto('/categories');
+            goto(redirectTo);
             return;
         }
 
@@ -36,7 +37,7 @@
             if (id) {
                 await deleteCategory(id);
             }
-            goto('/categories');
+            goto(redirectTo);
         } catch (e) {
             error = 'Failed to delete category.';
             console.error(e);
@@ -44,7 +45,7 @@
     }
 
     function cancel() {
-        goto('/categories');
+        goto(redirectTo);
     }
 </script>
 

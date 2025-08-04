@@ -7,13 +7,14 @@
     import type { NewTransaction, Transaction } from '$lib/types';
 
     let transaction: Transaction | null = null;
-    $: id = page.params.id;
+    const id = page.params.id;
+    const redirectTo = page.url.searchParams.get('redirectTo') ?? '/transactions';
 
     onMount(async () => {
         if (id) {
             transaction = await getTransaction(id);
         } else {
-            goto('/transactions');
+            goto(redirectTo);
         }
     });
 
@@ -21,7 +22,7 @@
         if (id) {
             await updateTransaction(id, data);
         }
-        goto('/transactions');
+        goto(redirectTo);
     }
 </script>
 
