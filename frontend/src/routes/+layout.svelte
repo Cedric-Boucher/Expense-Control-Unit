@@ -38,9 +38,9 @@
     <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
         <div class="flex gap-4">
             <button on:click={() => goto('/transactions')} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">Transactions</button>
-            <button on:click={() => goto('/new_transaction')} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">New Transaction</button>
+            <button on:click={() => goto('/transactions/new')} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">New Transaction</button>
             <button on:click={() => goto('/categories')} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">Categories</button>
-            <button on:click={() => goto('/new_category')} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">New Category</button>
+            <button on:click={() => goto('/categories/new')} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">New Category</button>
         </div>
         <div class="flex gap-4">
             {#if $auth.isLoggedIn}
