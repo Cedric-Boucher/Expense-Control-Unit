@@ -159,3 +159,11 @@ export async function deleteCategory(id: string) {
         credentials: 'include'
     });
 }
+
+export async function getCategoryTransactions(category_id: string): Promise<Transaction[]> {
+    const res = await fetch(`${API_BASE}/api/categories/${category_id}/transactions`, {
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to fetch transactions');
+    return await res.json();
+}
