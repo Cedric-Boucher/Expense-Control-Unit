@@ -136,3 +136,26 @@ export async function deleteTransaction(id: string) {
         credentials: 'include'
     });
 }
+
+export async function getCategory(id: string): Promise<Category> {
+    const res = await fetch(`${API_BASE}/api/categories/${id}`, {
+        credentials: 'include'
+    });
+    return await res.json();
+}
+
+export async function updateCategory(id: string, data: NewCategory) {
+    await fetch(`${API_BASE}/api/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include'
+    });
+}
+
+export async function deleteCategory(id: string) {
+    await fetch(`${API_BASE}/api/categories/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+}
