@@ -167,3 +167,23 @@ export async function getCategoryTransactions(category_id: string): Promise<Tran
     if (!res.ok) throw new Error('Failed to fetch transactions');
     return await res.json();
 }
+
+export async function uploadUserData(payload: string) {
+    const data = JSON.parse(payload);
+
+    const res = await fetch(`${API_BASE}/api/import`, {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include'
+    });
+
+    if (res.ok) {
+        alert('Data imported successfully!');
+    } else {
+        const error = await res.text();
+        alert(`Import failed: ${error}`);
+    }
+}

@@ -1,21 +1,15 @@
 <script lang="ts">
-    import { getCategories } from '$lib/api';
     import { onMount } from 'svelte';
     import { auth } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
     import type { Category } from '$lib/types';
     import CategoryCard from '$lib/components/CategoryCard.svelte';
-
-    let categories: Category[] = [];
+    export let data: { categories: Category[] };
 
     onMount(() => {
         if (!$auth.isLoggedIn) {
             goto('/login');
         }
-    });
-
-    onMount(async () => {
-        categories = await getCategories();
     });
 </script>
 
@@ -30,9 +24,9 @@
     </button>
 </div>
 
-{#if categories.length}
+{#if data.categories.length}
     <ul class="space-y-4">
-        {#each categories as category}
+        {#each data.categories as category}
             <CategoryCard {category} showActions={true} />
         {/each}
     </ul>

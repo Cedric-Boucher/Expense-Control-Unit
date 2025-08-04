@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO transactions (user_id, category_id, description, amount, created_at)\n            VALUES ($1, $2, $3, $4, $5)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4",
+        "Text",
+        "Numeric",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "89033091f01bac107bce0d6a3545475cd4812fa08195f36b05a8439252f25bec"
+}

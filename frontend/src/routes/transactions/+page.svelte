@@ -1,21 +1,15 @@
 <script lang="ts">
-    import { getTransactions } from '$lib/api';
     import { onMount } from 'svelte';
     import { auth } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
     import type { Transaction } from '$lib/types';
     import TransactionCard from '$lib/components/TransactionCard.svelte';
-
-    let transactions: Transaction[] = [];
+    export let data: { transactions: Transaction[] };
 
     onMount(() => {
         if (!$auth.isLoggedIn) {
             goto('/login');
         }
-    });
-
-    onMount(async () => {
-        transactions = await getTransactions();
     });
 </script>
 
@@ -30,9 +24,9 @@
     </button>
 </div>
 
-{#if transactions.length}
+{#if data.transactions.length}
     <ul class="space-y-4">
-        {#each transactions as tx}
+        {#each data.transactions as tx}
             <TransactionCard transaction={tx} showActions={true} />
         {/each}
     </ul>

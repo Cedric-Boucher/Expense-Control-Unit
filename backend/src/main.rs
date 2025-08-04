@@ -12,7 +12,7 @@ mod models;
 mod passwords;
 mod time_conversion;
 mod middleware;
-use routes::{me, transactions, signup, login, logout, categories};
+use routes::{me, transactions, signup, login, logout, categories, import};
 use db::init_db_pool;
 
 static MIGRATOR: Migrator = sqlx::migrate!();
@@ -47,6 +47,7 @@ async fn main() {
         .merge(signup::routes())
         .merge(login::routes())
         .merge(logout::routes())
+        .merge(import::routes())
         .layer(Extension(db))
         .layer(CookieManagerLayer::new())
         .layer(cors);

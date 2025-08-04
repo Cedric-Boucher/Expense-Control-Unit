@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
-import { getTransactions, getCategories } from '$lib/api';
+import { getTransactions, getCategories, uploadUserData } from '$lib/api';
 import type { Category, Transaction } from '$lib/types';
+import { invalidateAll } from '$app/navigation';
 
 export function formatTimestampLocal(isoString: string): string {
     const date = new Date(isoString); // converts to local time
@@ -42,4 +43,26 @@ export async function exportUserDataToFile() {
         console.error('Failed to export data:', error);
         alert('Failed to export data. Please try again.');
     }
+}
+
+export async function importUserDataFromFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+
+    input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            await uploadUserData(text);
+            await invalidateAll(); // update page to show imported data
+        } catch (err) {
+            console.error('Import error:', err);
+            alert('Invalid JSON file or network error.');
+        }
+    };
+
+    input.click();
 }
