@@ -136,6 +136,7 @@
         </button>
         {#if showCancel}
             <button
+                type="button"
                 on:click={cancel}
                 class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
             >

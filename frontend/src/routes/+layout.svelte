@@ -51,14 +51,8 @@
             <button onclick={() => goto('/transactions')} class={navButtonClasses('/transactions')}>
                 Transactions
             </button>
-            <button onclick={() => goto('/transactions/new')} class={navButtonClasses('/transactions/new')}>
-                New Transaction
-            </button>
             <button onclick={() => goto('/categories')} class={navButtonClasses('/categories')}>
                 Categories
-            </button>
-            <button onclick={() => goto('/categories/new')} class={navButtonClasses('/categories/new')}>
-                New Category
             </button>
         </div>
 

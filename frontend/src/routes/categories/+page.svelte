@@ -21,6 +21,15 @@
 
 <h1 class="text-2xl font-bold mb-4">Categories</h1>
 
+<div class="mb-6">
+    <button
+        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        on:click={() => goto('/categories/new')}
+    >
+        + New Category
+    </button>
+</div>
+
 {#if categories.length}
     <ul class="space-y-4">
         {#each categories as category}

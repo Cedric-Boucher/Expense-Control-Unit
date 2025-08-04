@@ -21,6 +21,15 @@
 
 <h1 class="text-2xl font-bold mb-4">Transactions</h1>
 
+<div class="mb-6">
+    <button
+        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        on:click={() => goto('/transactions/new')}
+    >
+        + New Transaction
+    </button>
+</div>
+
 {#if transactions.length}
     <ul class="space-y-4">
         {#each transactions as tx}
