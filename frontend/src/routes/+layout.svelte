@@ -6,6 +6,7 @@
     import { check_login, logout } from '$lib/api';
     import type { LayoutData } from './$types';
     import { page } from '$app/state';
+    import { exportUserDataToFile } from '$lib/utils';
 
     let { data, children }: {data: LayoutData, children: Snippet } = $props()
 
@@ -69,6 +70,7 @@
                     Sign Up
                 </button>
             {/if}
+            <button onclick={exportUserDataToFile} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">Export All Data</button>
             <button onclick={toggleDarkMode} class="px-3 py-2 rounded text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100">
                 {darkMode ? '🌙 Dark' : '☀️ Light'}
             </button>
