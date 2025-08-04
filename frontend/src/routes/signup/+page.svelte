@@ -1,6 +1,6 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    import { signup } from '$lib/api';
+    import { check_login, signup } from '$lib/api';
     import { auth } from '$lib/stores/auth';
     import type { NewUser } from '$lib/types';
     import { onMount } from 'svelte';
@@ -10,7 +10,8 @@
     let error = '';
     let success = false;
 
-    onMount(() => {
+    onMount(async () => {
+        await check_login();
         if ($auth.isLoggedIn) {
             goto('/transactions');
         }

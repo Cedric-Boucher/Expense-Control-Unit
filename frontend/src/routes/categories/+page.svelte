@@ -1,16 +1,8 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { auth } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
     import type { Category } from '$lib/types';
     import CategoryCard from '$lib/components/CategoryCard.svelte';
     export let data: { categories: Category[] };
-
-    onMount(() => {
-        if (!$auth.isLoggedIn) {
-            goto('/login');
-        }
-    });
 </script>
 
 <h1 class="text-2xl font-bold mb-4">Categories</h1>

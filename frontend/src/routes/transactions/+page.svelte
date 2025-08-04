@@ -1,16 +1,8 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { auth } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
     import type { Transaction } from '$lib/types';
     import TransactionCard from '$lib/components/TransactionCard.svelte';
     export let data: { transactions: Transaction[] };
-
-    onMount(() => {
-        if (!$auth.isLoggedIn) {
-            goto('/login');
-        }
-    });
 </script>
 
 <h1 class="text-2xl font-bold mb-4">Transactions</h1>

@@ -4,21 +4,16 @@
     import '../app.css';
     import { onMount, type Snippet } from 'svelte';
     import { check_login, logout } from '$lib/api';
-    import type { LayoutData } from './$types';
     import { page } from '$app/state';
     import { exportUserDataToFile, importUserDataFromFile } from '$lib/utils';
 
-    let { data, children }: {data: LayoutData, children: Snippet } = $props()
+    let { children }: {children: Snippet } = $props()
 
     const currentPath = $derived(page.url.pathname);
 
     let darkMode = $state(false);
 
     onMount(check_login);
-
-    onMount(() => {
-        auth.set({ isLoggedIn: !!data.user });
-    });
 
     onMount(() => {
         const stored = localStorage.getItem('theme');
@@ -48,14 +43,16 @@
 
 <nav class="bg-white dark:bg-gray-800 shadow sticky top-0 z-10">
     <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-        <div class="flex gap-4">
-            <button onclick={() => goto('/transactions')} class={navButtonClasses('/transactions')}>
-                Transactions
-            </button>
-            <button onclick={() => goto('/categories')} class={navButtonClasses('/categories')}>
-                Categories
-            </button>
-        </div>
+        {#if $auth.isLoggedIn}
+            <div class="flex gap-4">
+                <button onclick={() => goto('/transactions')} class={navButtonClasses('/transactions')}>
+                    Transactions
+                </button>
+                <button onclick={() => goto('/categories')} class={navButtonClasses('/categories')}>
+                    Categories
+                </button>
+            </div>
+        {/if}
 
         <div class="flex gap-4">
             {#if $auth.isLoggedIn}
@@ -70,8 +67,10 @@
                     Sign Up
                 </button>
             {/if}
-            <button onclick={importUserDataFromFile} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">Import Data</button>
-            <button onclick={exportUserDataToFile} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">Export All Data</button>
+            {#if $auth.isLoggedIn}
+                <button onclick={importUserDataFromFile} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">Import Data</button>
+                <button onclick={exportUserDataToFile} class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium">Export All Data</button>
+            {/if}
             <button onclick={toggleDarkMode} class="px-3 py-2 rounded text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100">
                 {darkMode ? '🌙 Dark' : '☀️ Light'}
             </button>
