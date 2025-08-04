@@ -6,7 +6,7 @@ use futures::future::join_all;
 
 pub fn routes() -> Router {
     Router::new().route("/api/transactions", get(list_transactions).post(create_transaction))
-        .route("/api/transactions/{id}", get(get_transaction).put(update_transaction))
+        .route("/api/transactions/{id}", get(get_transaction).put(update_transaction).delete(delete_transaction))
 }
 
 async fn list_transactions(
@@ -188,4 +188,27 @@ async fn update_transaction(
     };
 
     Ok(Json(updated))
+}
+
+async fn delete_transaction(
+    Path(id): Path<i32>,
+    Extension(pool): Extension<PgPool>,
+    AuthSession(user): AuthSession
+) -> impl IntoResponse {
+    let result = sqlx::query!(
+        r#"
+        DELETE FROM transactions
+        WHERE id = $1 AND user_id = $2
+        "#,
+        id,
+        user.id
+    )
+    .execute(&pool)
+    .await;
+
+    match result {
+        Ok(res) if res.rows_affected() == 0 => Err(StatusCode::NOT_FOUND),
+        Ok(_) => Ok(StatusCode::NO_CONTENT),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }

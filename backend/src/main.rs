@@ -31,6 +31,7 @@ async fn main() {
             Method::POST,
             Method::OPTIONS,
             Method::PUT,
+            Method::DELETE,
         ])
         .allow_headers([
             header::AUTHORIZATION,

@@ -129,3 +129,10 @@ export async function updateTransaction(id: string, data: NewTransaction) {
         credentials: 'include'
     });
 }
+
+export async function deleteTransaction(id: string) {
+    await fetch(`${API_BASE}/api/transactions/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+}
