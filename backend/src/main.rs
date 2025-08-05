@@ -25,7 +25,11 @@ async fn main() {
     MIGRATOR.run(&db).await.expect("Failed to run migrations");
 
     let cors = CorsLayer::new()
-        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+        .allow_origin([
+            "http://localhost:5173".parse::<HeaderValue>().unwrap(),
+            "http://10.0.0.4:5173".parse::<HeaderValue>().unwrap(),
+            "http://dusty-piston:5173".parse::<HeaderValue>().unwrap(),
+        ])
         .allow_methods([
             Method::GET,
             Method::POST,
