@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:latest
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: finance_user
       POSTGRES_PASSWORD: finance_pass
@@ -15,7 +15,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    restart: always
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgres://finance_user:finance_pass@db:5432/finance_db
       - PORT=8000
@@ -29,6 +29,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+    restart: unless-stopped
     ports:
       - "5173:80"
     depends_on:
