@@ -13,6 +13,8 @@
 
     const description = writable(initial.description ?? '');
     const amount = writable(initial.amount ?? '');
+
+    const hasInitialTimestamp = !!initial.created_at;
     const timestamp = writable(initial.created_at ? formatTimestampLocal(initial.created_at) : '');
 
     const categories = writable<Category[]>([]);
@@ -26,14 +28,29 @@
         $categories.filter(cat => cat.name.toLowerCase().startsWith($inputValue.toLowerCase()))
     );
 
+    let timestampTouched = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
     onMount(async () => {
         const result = await getCategories();
         categories.set(result);
 
-        // Pre-fill selected category
         if (initial.category) {
             selectedCategory.set(initial.category);
             inputValue.set(initial.category.name);
+        }
+
+        if (!hasInitialTimestamp) {
+            const updateTime = () => {
+                if (!timestampTouched) {
+                    const now = new Date();
+                    const tzOffset = now.getTimezoneOffset() * 60000;
+                    const localISO = new Date(now.getTime() - tzOffset).toISOString().slice(0, 19);
+                    timestamp.set(localISO);
+                }
+            };
+            updateTime();
+            timer = setInterval(updateTime, 1000);
         }
 
         const handleClickOutside = (event: MouseEvent) => {
@@ -44,6 +61,7 @@
         document.addEventListener('click', handleClickOutside, true);
         onDestroy(() => {
             document.removeEventListener('click', handleClickOutside, true);
+            if (timer) clearInterval(timer);
         });
     });
 
@@ -64,17 +82,20 @@
         const $selectedCategory = get(selectedCategory);
         const $timestamp = get(timestamp);
 
-        if (!$description || !$amount || !$selectedCategory) {
-            error = 'Description, category, and amount are required.';
+        if (!$amount || !$selectedCategory) {
+            error = 'Category, and amount are required.';
             return;
         }
 
         const payload: NewTransaction = {
             description: $description,
             amount: Number($amount),
-            created_at: toISOStringIfDefined($timestamp || undefined),
             category_id: $selectedCategory.id,
         };
+
+        if (timestampTouched || hasInitialTimestamp) {
+            payload.created_at = toISOStringIfDefined($timestamp || undefined);
+        }
 
         try {
             await onSubmit(payload);
@@ -87,14 +108,17 @@
     function cancel() {
         goto('/transactions');
     }
+
+    function handleTimestampFocusOrInput() {
+        timestampTouched = true;
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+    }
 </script>
 
 <form on:submit|preventDefault={submit} class="space-y-4 max-w-md">
-    <div>
-        <label for="desc" class="block font-medium">Description</label>
-        <input id="desc" bind:value={$description} class="w-full p-2 border rounded" />
-    </div>
-
     <div bind:this={categoryContainer}>
         <label for="cat" class="block font-medium">Category</label>
         <input
@@ -126,8 +150,21 @@
     </div>
 
     <div>
-        <label for="time" class="block font-medium">Timestamp (optional)</label>
-        <input id="time" type="datetime-local" bind:value={$timestamp} step="1" class="w-full p-2 border rounded" />
+        <label for="desc" class="block font-medium">Description</label>
+        <input id="desc" bind:value={$description} class="w-full p-2 border rounded" />
+    </div>
+
+    <div>
+        <label for="time" class="block font-medium">Timestamp</label>
+        <input
+            id="time"
+            type="datetime-local"
+            bind:value={$timestamp}
+            step="1"
+            class="w-full p-2 border rounded"
+            on:focus={handleTimestampFocusOrInput}
+            on:input={handleTimestampFocusOrInput}
+        />
     </div>
 
     <div class="flex space-x-4">

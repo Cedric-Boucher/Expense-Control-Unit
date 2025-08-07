@@ -31,8 +31,8 @@
 <li class="bg-white dark:bg-gray-800 shadow rounded p-4 flex justify-between items-start gap-4">
     <!-- Left: transaction details -->
     <div>
-        <div class="text-2xl font-bold">{transaction.description}</div>
-        <div class="font-medium">{transaction.category.name}</div>
+        <div class="text-2xl font-bold">{transaction.category.name}</div>
+        <div class="font-medium">{transaction.description}</div>
         <div class={transaction.amount > 0 ? 'text-green-600 font-bold text-xl' : 'text-red-600 font-bold text-xl'}>
             ${transaction.amount}
         </div>
