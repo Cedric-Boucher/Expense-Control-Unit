@@ -34,7 +34,7 @@
         <div class="text-2xl font-bold">{transaction.category.name}</div>
         <div class="font-medium">{transaction.description}</div>
         <div class={transaction.amount > 0 ? 'text-green-600 font-bold text-xl' : 'text-red-600 font-bold text-xl'}>
-            ${transaction.amount}
+            ${transaction.amount.toFixed(2)}
         </div>
         <div class="text-gray-500 text-sm">{formatTimestampLocalForDisplay(transaction.created_at)}</div>
     </div>
