@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use crate::{models::user::NewUser, passwords::verify_password};
 
 pub fn routes() -> Router {
-    Router::new().route("/api/login", post(login))
+    Router::new().route("/login", post(login))
 }
 
 pub async fn login(

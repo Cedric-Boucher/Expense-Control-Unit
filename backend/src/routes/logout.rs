@@ -3,7 +3,7 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use tower_cookies::cookie::time;
 
 pub fn routes() -> Router {
-    Router::new().route("/api/logout", post(logout))
+    Router::new().route("/logout", post(logout))
 }
 
 pub async fn logout(jar: CookieJar) -> impl IntoResponse {

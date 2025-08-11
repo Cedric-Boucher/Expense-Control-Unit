@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::{models::user::NewUser, passwords::hash_password};
 
 pub fn routes() -> Router {
-    Router::new().route("/api/signup", post(signup))
+    Router::new().route("/signup", post(signup))
 }
 
 pub async fn signup(

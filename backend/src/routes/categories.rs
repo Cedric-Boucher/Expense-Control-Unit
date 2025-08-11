@@ -5,9 +5,9 @@ use bigdecimal::ToPrimitive;
 use futures::future::join_all;
 
 pub fn routes() -> Router {
-    Router::new().route("/api/categories", get(list_categories).post(create_category))
-        .route("/api/categories/{id}", get(get_category).put(update_category).delete(delete_category))
-        .route("/api/categories/{id}/transactions", get(get_transactions))
+    Router::new().route("/categories", get(list_categories).post(create_category))
+        .route("/categories/{id}", get(get_category).put(update_category).delete(delete_category))
+        .route("/categories/{id}/transactions", get(get_transactions))
 }
 
 async fn list_categories(

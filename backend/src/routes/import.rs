@@ -9,7 +9,7 @@ use bigdecimal::{BigDecimal, FromPrimitive};
 use std::collections::HashMap;
 
 pub fn routes() -> Router {
-    Router::new().route("/api/import", post(import_data))
+    Router::new().route("/import", post(import_data))
 }
 
 pub async fn import_data(

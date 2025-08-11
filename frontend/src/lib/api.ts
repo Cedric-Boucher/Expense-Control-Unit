@@ -2,10 +2,10 @@ import { goto } from "$app/navigation";
 import { auth } from "./stores/auth";
 import type { Transaction, NewTransaction, NewUser, User, Category, NewCategory } from "./types";
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = '/api';
 
 export async function getTransactions(): Promise<Transaction[]> {
-    const res = await fetch(`${API_BASE}/api/transactions`, {
+    const res = await fetch(`${API_BASE}/transactions`, {
         credentials: 'include'
     });
     if (!res.ok) throw new Error('Failed to fetch transactions');
@@ -18,7 +18,7 @@ export async function createTransaction(payload: NewTransaction): Promise<Transa
         payload.created_at = new Date(payload.created_at).toISOString();
     }
 
-    const res = await fetch(`${API_BASE}/api/transactions`, {
+    const res = await fetch(`${API_BASE}/transactions`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
@@ -33,7 +33,7 @@ export async function createTransaction(payload: NewTransaction): Promise<Transa
 }
 
 export async function login(payload: NewUser): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/login`, {
+    const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -48,7 +48,7 @@ export async function login(payload: NewUser): Promise<void> {
 }
 
 export async function signup(payload: NewUser): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/signup`, {
+    const res = await fetch(`${API_BASE}/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -64,7 +64,7 @@ export async function signup(payload: NewUser): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
-    await fetch(`${API_BASE}/api/logout`, {
+    await fetch(`${API_BASE}/logout`, {
         method: 'POST',
         credentials: 'include',
     });
@@ -73,14 +73,14 @@ export async function logout(): Promise<void> {
 }
 
 export async function check_login(): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/me`, {
+    const res = await fetch(`${API_BASE}/me`, {
         credentials: 'include'
     });
     auth.set({ isLoggedIn: res.ok });
 }
 
 export async function load_user(): Promise<{user: User | null}> {
-    const res = await fetch(`${API_BASE}/api/me`, {
+    const res = await fetch(`${API_BASE}/me`, {
         credentials: 'include'
     });
     if (res.ok) {
@@ -92,7 +92,7 @@ export async function load_user(): Promise<{user: User | null}> {
 };
 
 export async function getCategories(): Promise<Category[]> {
-    const res = await fetch(`${API_BASE}/api/categories`, {
+    const res = await fetch(`${API_BASE}/categories`, {
         credentials: 'include'
     });
     if (!res.ok) throw new Error('Failed to fetch categories');
@@ -100,7 +100,7 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 export async function createCategory(payload: NewCategory): Promise<Category> {
-    const res = await fetch(`${API_BASE}/api/categories`, {
+    const res = await fetch(`${API_BASE}/categories`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
@@ -115,14 +115,14 @@ export async function createCategory(payload: NewCategory): Promise<Category> {
 }
 
 export async function getTransaction(id: string): Promise<Transaction> {
-    const res = await fetch(`${API_BASE}/api/transactions/${id}`, {
+    const res = await fetch(`${API_BASE}/transactions/${id}`, {
         credentials: 'include'
     });
     return await res.json();
 }
 
 export async function updateTransaction(id: string, data: NewTransaction) {
-    await fetch(`${API_BASE}/api/transactions/${id}`, {
+    await fetch(`${API_BASE}/transactions/${id}`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(data),
@@ -131,21 +131,21 @@ export async function updateTransaction(id: string, data: NewTransaction) {
 }
 
 export async function deleteTransaction(id: string) {
-    await fetch(`${API_BASE}/api/transactions/${id}`, {
+    await fetch(`${API_BASE}/transactions/${id}`, {
         method: 'DELETE',
         credentials: 'include'
     });
 }
 
 export async function getCategory(id: string): Promise<Category> {
-    const res = await fetch(`${API_BASE}/api/categories/${id}`, {
+    const res = await fetch(`${API_BASE}/categories/${id}`, {
         credentials: 'include'
     });
     return await res.json();
 }
 
 export async function updateCategory(id: string, data: NewCategory) {
-    await fetch(`${API_BASE}/api/categories/${id}`, {
+    await fetch(`${API_BASE}/categories/${id}`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(data),
@@ -154,14 +154,14 @@ export async function updateCategory(id: string, data: NewCategory) {
 }
 
 export async function deleteCategory(id: string) {
-    await fetch(`${API_BASE}/api/categories/${id}`, {
+    await fetch(`${API_BASE}/categories/${id}`, {
         method: 'DELETE',
         credentials: 'include'
     });
 }
 
 export async function getCategoryTransactions(category_id: string): Promise<Transaction[]> {
-    const res = await fetch(`${API_BASE}/api/categories/${category_id}/transactions`, {
+    const res = await fetch(`${API_BASE}/categories/${category_id}/transactions`, {
         credentials: 'include'
     });
     if (!res.ok) throw new Error('Failed to fetch transactions');
@@ -171,7 +171,7 @@ export async function getCategoryTransactions(category_id: string): Promise<Tran
 export async function uploadUserData(payload: string) {
     const data = JSON.parse(payload);
 
-    const res = await fetch(`${API_BASE}/api/import`, {
+    const res = await fetch(`${API_BASE}/import`, {
         method: 'POST',
         headers: {
             'content-type': 'application/json',

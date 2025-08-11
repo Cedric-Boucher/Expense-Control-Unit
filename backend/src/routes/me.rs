@@ -7,7 +7,7 @@ use crate::middleware::AuthSession;
 use crate::models::user::User;
 
 pub fn routes() -> Router {
-    Router::new().route("/api/me", get(login_check))
+    Router::new().route("/me", get(login_check))
 }
 
 async fn login_check(AuthSession(user): AuthSession) -> impl IntoResponse {
