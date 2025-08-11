@@ -24,11 +24,15 @@
         }
         goto(redirectTo);
     }
+
+    function cancel() {
+        goto(redirectTo);
+    }
 </script>
 
 {#if transaction}
     <h1 class="text-2xl font-bold mb-4">Edit Transaction</h1>
-    <TransactionForm initial={transaction} onSubmit={handleUpdate} submitLabel="Save Changes" showCancel={true} />
+    <TransactionForm initial={transaction} onSubmit={handleUpdate} onCancel={cancel} submitLabel="Save Changes" showCancel={true} />
 {:else}
     <p>Loading...</p>
 {/if}

@@ -4,10 +4,10 @@
     import type { Category, NewTransaction, Transaction } from '$lib/types';
     import { derived, get, writable, type Readable } from 'svelte/store';
     import { formatTimestampLocal } from '$lib/utils';
-	import { goto } from '$app/navigation';
 
     export let initial: Partial<Transaction> = {};
     export let onSubmit: (data: NewTransaction) => Promise<void>;
+    export let onCancel: () => void;
     export let submitLabel = 'Submit';
     export let showCancel: boolean = false;
 
@@ -105,10 +105,6 @@
         }
     }
 
-    function cancel() {
-        goto('/transactions');
-    }
-
     function handleTimestampFocusOrInput() {
         timestampTouched = true;
         if (timer) {
@@ -174,7 +170,7 @@
         {#if showCancel}
             <button
                 type="button"
-                on:click={cancel}
+                on:click={onCancel}
                 class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
             >
                 Cancel

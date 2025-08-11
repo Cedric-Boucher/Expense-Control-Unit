@@ -8,7 +8,11 @@
         await createTransaction(payload);
         goto('/transactions');
     }
+
+    function cancel() {
+        goto('/transactions');
+    }
 </script>
 
 <h1 class="text-2xl font-bold mb-4">New Transaction</h1>
-<TransactionForm onSubmit={handleCreate} submitLabel="Create" showCancel={true} />
+<TransactionForm onSubmit={handleCreate} onCancel={cancel} submitLabel="Create" showCancel={true} />
