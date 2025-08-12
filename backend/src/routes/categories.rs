@@ -19,7 +19,7 @@ async fn list_categories(
         SELECT id, name, created_at
         FROM categories
         WHERE user_id = $1
-        ORDER BY id DESC
+        ORDER BY name ASC
         "#,
         user.id
     )
