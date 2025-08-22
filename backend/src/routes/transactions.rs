@@ -15,10 +15,19 @@ async fn list_transactions(
 ) -> impl IntoResponse {
     let futures = sqlx::query!(
         r#"
-        SELECT id, category_id, description, amount, created_at
+        SELECT
+            transactions.id as transaction_id,
+            categories.id as category_id,
+            transactions.description as transaction_description,
+            categories.name as category_name,
+            amount,
+            transactions.created_at as transaction_created_at,
+            categories.created_at as category_created_at
         FROM transactions
-        WHERE user_id = $1
-        ORDER BY created_at DESC
+        JOIN categories
+        ON transactions.category_id = categories.id
+        WHERE transactions.user_id = $1
+        ORDER BY transactions.created_at DESC
         "#,
         user.id
     )
@@ -27,11 +36,15 @@ async fn list_transactions(
     .expect("Failed to fetch transactions")
     .into_iter()
     .map(async |row| Transaction {
-        id: row.id,
-        category: fetch_category(axum::Extension(pool.clone()), &user, row.category_id).await,
-        description: row.description,
+        id: row.transaction_id,
+        category: Category {
+            id: row.category_id,
+            name: row.category_name,
+            created_at: convert_time_to_chrono(row.category_created_at)
+        },
+        description: row.transaction_description,
         amount: row.amount.to_f64().unwrap_or(0.0),
-        created_at: convert_time_to_chrono(row.created_at)
+        created_at: convert_time_to_chrono(row.transaction_created_at)
     });
 
     let rows: Vec<Transaction> = join_all(futures).await;

@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            transactions.id as transaction_id,\n            categories.id as category_id,\n            transactions.description as transaction_description,\n            categories.name as category_name,\n            amount,\n            transactions.created_at as transaction_created_at,\n            categories.created_at as category_created_at\n        FROM transactions\n        JOIN categories\n        ON transactions.category_id = categories.id\n        WHERE transactions.user_id = $1\n        ORDER BY transactions.created_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "transaction_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "category_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "transaction_description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "category_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "amount",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "transaction_created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "category_created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "70ea05296acad8b472eedca2cf19405ff4e0febbbc94d810453d32e0a96c5a2c"
+}
