@@ -12,7 +12,9 @@
     export let showCancel: boolean = false;
 
     const description = writable(initial.description ?? '');
-    const amount = writable(initial.amount ?? '');
+    const amount = writable(initial.amount?.toString() ?? '');
+    const val = parseFloat(get(amount));
+    const isExpense = writable(!isNaN(val) ? val < 0 : true);
 
     const hasInitialTimestamp = !!initial.created_at;
     const timestamp = writable(initial.created_at ? formatTimestampLocal(initial.created_at) : '');
@@ -30,6 +32,30 @@
 
     let timestampTouched = false;
     let timer: ReturnType<typeof setInterval> | null = null;
+
+    function formatNumberString(value: string): string {
+        if (!value) {
+            console.log("format number received: ", value);
+            return "";
+        }
+
+        // Step 1: keep only digits, and decimal point(s)
+        let formatted = value.replace(/[^0-9.]/g, "");
+        // Step 2: remove all negative symbols except the first character
+        // formatted = formatted.replace(/(?!^)-/g, "");
+        // Step 3: remove extra decimal points (keep only the first one)
+        formatted = formatted.replace(/(\..*?)\./g, "$1");
+        // Step 4: trim leading zeros (but preserve "0" and "-0")
+        formatted = formatted.replace(/^(-?)0+(\d)/, "$1$2");
+
+        console.log("Formatted number: ", formatted);
+
+        return formatted;
+    }
+
+    function toggleExpense() {
+        isExpense.update(v => !v);
+    }
 
     onMount(async () => {
         const result = await getCategories();
@@ -115,6 +141,43 @@
 </script>
 
 <form on:submit|preventDefault={submit} class="space-y-4 max-w-md">
+    <div>
+        <label for="amnt" class="block font-medium">Amount</label>
+        <input
+            id="amnt"
+            type="text"
+            inputmode="numeric"
+            bind:value={$amount}
+            on:input={
+                (e) => {
+                    const input = e.target as HTMLInputElement;
+                    amount.set(formatNumberString(input.value.toString()));
+                    input.value = get(amount);
+                }
+            }
+            class="w-full p-2 border rounded {$isExpense ? 'text-red-800 dark:text-red-200' : 'text-green-800 dark:text-green-200'}"
+        />
+    </div>
+
+    <div>
+        <span class="font-medium {$isExpense ? 'text-red-600' : 'text-gray-500 dark:text-gray-300'}">Expense</span>
+        <!-- svelte-ignore a11y_consider_explicit_label -->
+        <button
+            type="button"
+            role="switch"
+            aria-checked={$isExpense}
+            on:click={toggleExpense}
+            class="relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none
+                {$isExpense ? 'bg-red-600' : 'bg-green-600'}"
+        >
+            <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                    {$isExpense ? 'translate-x-1' : 'translate-x-7'}"
+            ></span>
+        </button>
+        <span class="font-medium {$isExpense ? 'text-gray-500 dark:text-gray-300' : 'text-green-600'}">Income</span>
+    </div>
+
     <div bind:this={categoryContainer}>
         <label for="cat" class="block font-medium">Category</label>
         <input
@@ -138,11 +201,6 @@
                 {/if}
             </ul>
         {/if}
-    </div>
-
-    <div>
-        <label for="amnt" class="block font-medium">Amount</label>
-        <input id="amnt" type="number" step="0.01" bind:value={$amount} class="w-full p-2 border rounded" />
     </div>
 
     <div>
