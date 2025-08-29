@@ -12,8 +12,8 @@
     export let showCancel: boolean = false;
 
     const description = writable(initial.description ?? '');
-    const amount = writable(initial.amount?.toString() ?? '');
-    const val = parseFloat(get(amount));
+    const amount = writable(formatNumberString(initial.amount?.toString() ?? ''));
+    const val = parseFloat(initial.amount?.toString() ?? '');
     const isExpense = writable(!isNaN(val) ? val < 0 : true);
 
     const hasInitialTimestamp = !!initial.created_at;
@@ -115,7 +115,7 @@
 
         const payload: NewTransaction = {
             description: $description,
-            amount: Number($amount),
+            amount: Number($amount)*(get(isExpense) ? -1 : 1),
             category_id: $selectedCategory.id,
         };
 
