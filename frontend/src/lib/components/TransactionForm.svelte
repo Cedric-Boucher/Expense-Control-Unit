@@ -27,7 +27,7 @@
     let categoryContainer: HTMLDivElement;
 
     const filtered: Readable<Category[]> = derived([categories, inputValue], ([$categories, $inputValue]) =>
-        $categories.filter(cat => cat.name.toLowerCase().startsWith($inputValue.toLowerCase()))
+        $categories.filter(cat => cat.name.toLowerCase().includes($inputValue.toLowerCase()))
     );
 
     let timestampTouched = false;
