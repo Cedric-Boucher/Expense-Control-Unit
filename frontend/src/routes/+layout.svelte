@@ -50,7 +50,7 @@
     />
 </svelte:head>
 
-<nav class="bg-white dark:bg-gray-800 shadow sticky top-0 z-10">
+<nav class="bg-white dark:bg-gray-800 shadow sticky top-0 z-50">
     <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
         {#if $auth.isLoggedIn}
             <div class="flex gap-4">
