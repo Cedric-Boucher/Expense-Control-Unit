@@ -41,6 +41,15 @@
     }
 </script>
 
+<svelte:head>
+    <title>Expense Control Unit</title>
+    <link
+        rel="icon"
+        href={darkMode ? "/favicon-dark.svg" : "/favicon-light.svg"}
+        type="image/svg"
+    />
+</svelte:head>
+
 <nav class="bg-white dark:bg-gray-800 shadow sticky top-0 z-10">
     <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
         {#if $auth.isLoggedIn}
