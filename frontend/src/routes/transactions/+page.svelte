@@ -16,33 +16,27 @@
         data.transactions.filter(tx => $selected.has(tx.category.id))
     );
 
-    const BATCH_SIZE = 50;
+    const BATCH_SIZE = 100;
+    const ESTIMATED_ITEM_HEIGHT = 80; 
+
     let limit = BATCH_SIZE;
 
     $: {
         $filteredTransactions;
         limit = BATCH_SIZE;
+        if (typeof window !== 'undefined') window.scrollTo(0, 0);
+    }
+
+    $: if (limit < $filteredTransactions.length) {
+        setTimeout(() => {
+            limit += BATCH_SIZE;
+        }, 0);
     }
 
     $: visibleTransactions = $filteredTransactions.slice(0, limit);
 
-    function infiniteScroll(node: HTMLElement) {
-        const observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && limit < $filteredTransactions.length) {
-                limit += BATCH_SIZE;
-            }
-        }, { 
-            rootMargin: '400px'
-        });
-
-        observer.observe(node);
-
-        return {
-            destroy() {
-                observer.disconnect();
-            }
-        };
-    }
+    $: remainingCount = Math.max(0, $filteredTransactions.length - limit);
+    $: phantomHeight = remainingCount * ESTIMATED_ITEM_HEIGHT;
 
     const isFilterOpen = writable(false);
     let filterContainer: HTMLDivElement;
@@ -156,12 +150,16 @@
             <TransactionCard transaction={tx} showActions={true} />
         {/each}
 
-        <div use:infiniteScroll class="h-4 w-full transparent"></div>
+        <div style="height: {phantomHeight}px; width: 100%"></div>
     </ul>
 
-    <div class="text-center text-xs text-gray-400 mt-2 mb-8">
-        Showing {visibleTransactions.length} of {$filteredTransactions.length} transactions
-    </div>
+    {#if limit < $filteredTransactions.length}
+        <p class="text-center text-xs text-gray-400 mt-2">Loading rest of data...</p>
+    {:else}
+        <p class="text-center text-xs text-gray-400 mt-2 mb-8">
+            Showing all {$filteredTransactions.length} transactions
+        </p>
+    {/if}
 {:else}
     <p class="text-gray-500 italic">No transactions match the selected categories.</p>
 {/if}
