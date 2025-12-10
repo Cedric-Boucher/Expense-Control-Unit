@@ -16,9 +16,36 @@
         data.transactions.filter(tx => $selected.has(tx.category.id))
     );
 
+    const BATCH_SIZE = 50;
+    let limit = BATCH_SIZE;
+
+    $: {
+        $filteredTransactions;
+        limit = BATCH_SIZE;
+    }
+
+    $: visibleTransactions = $filteredTransactions.slice(0, limit);
+
+    function infiniteScroll(node: HTMLElement) {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && limit < $filteredTransactions.length) {
+                limit += BATCH_SIZE;
+            }
+        }, { 
+            rootMargin: '400px'
+        });
+
+        observer.observe(node);
+
+        return {
+            destroy() {
+                observer.disconnect();
+            }
+        };
+    }
+
     const isFilterOpen = writable(false);
     let filterContainer: HTMLDivElement;
-
     const searchQuery = writable('');
 
     const visibleCategories = derived(searchQuery, $searchQuery =>
@@ -123,12 +150,18 @@
     </div>
 </div>
 
-{#if $filteredTransactions.length}
+{#if visibleTransactions.length}
     <ul class="space-y-4">
-        {#each $filteredTransactions as tx}
+        {#each visibleTransactions as tx (tx.id)}
             <TransactionCard transaction={tx} showActions={true} />
         {/each}
+
+        <div use:infiniteScroll class="h-4 w-full transparent"></div>
     </ul>
+
+    <div class="text-center text-xs text-gray-400 mt-2 mb-8">
+        Showing {visibleTransactions.length} of {$filteredTransactions.length} transactions
+    </div>
 {:else}
     <p class="text-gray-500 italic">No transactions match the selected categories.</p>
 {/if}
