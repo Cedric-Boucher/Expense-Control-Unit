@@ -12,6 +12,9 @@
     ).sort((a, b) => a.name.localeCompare(b.name));
 
     const selectedCategoryIds = writable<Set<number>>(new Set(categories.map(c => c.id)));
+
+    $: isFilterActive = $selectedCategoryIds.size < categories.length;
+
     const filteredTransactions = derived(selectedCategoryIds, $selected =>
         data.transactions.filter(tx => $selected.has(tx.category.id))
     );
@@ -88,10 +91,16 @@
     <div class="relative" bind:this={filterContainer}>
         <button
             type="button"
-            class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center gap-2"
+            class="px-4 py-2 rounded flex items-center gap-2 transition-colors
+            {isFilterActive 
+                ? 'bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:hover:bg-amber-800' 
+                : 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600'
+            }"
             on:click={() => isFilterOpen.update(v => !v)}
         >
-            <span class="font-medium">Filter Categories</span>
+            <span class="font-medium">
+                {isFilterActive ? 'Filter Categories (Active)' : 'Filter Categories'}
+            </span>
             <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
