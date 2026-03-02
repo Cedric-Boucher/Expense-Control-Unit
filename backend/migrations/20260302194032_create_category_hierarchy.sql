@@ -1,7 +1,9 @@
+ALTER TABLE categories ADD CONSTRAINT categories_user_unique UNIQUE (id, user_id);
+
 CREATE TABLE category_hierarchy (
     category_id INTEGER PRIMARY KEY,
     parent_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
+    user_id UUID NOT NULL,
 
     CONSTRAINT fk_child_user 
         FOREIGN KEY (category_id, user_id) 
