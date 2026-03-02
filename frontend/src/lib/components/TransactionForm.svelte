@@ -19,15 +19,16 @@
     const hasInitialTimestamp = !!initial.created_at;
     const timestamp = writable(initial.created_at ? formatTimestampLocal(initial.created_at) : '');
 
-    const categories = writable<Category[]>([]);
+    type CategoryWithPath = Category & { pathName?: string };
+    const categories = writable<CategoryWithPath[]>([]);
     const inputValue = writable('');
     const selectedCategory = writable<Category | null>(null);
     let showDropdown = false;
     let error = '';
     let categoryContainer: HTMLDivElement;
 
-    const filtered: Readable<Category[]> = derived([categories, inputValue], ([$categories, $inputValue]) =>
-        $categories.filter(cat => cat.name.toLowerCase().includes($inputValue.toLowerCase()))
+    const filtered: Readable<CategoryWithPath[]> = derived([categories, inputValue], ([$categories, $inputValue]) =>
+        $categories.filter(cat => (cat.pathName || cat.name).toLowerCase().includes($inputValue.toLowerCase()))
     );
 
     let timestampTouched = false;
@@ -59,11 +60,24 @@
 
     onMount(async () => {
         const result = await getCategories();
-        categories.set(result);
+        const map = new Map(result.map(c => [c.id, c]));
+
+        const enriched = result.map(c => {
+            let path = c.name;
+            let curr = c;
+            while (curr.parent_id && map.has(curr.parent_id)) {
+                curr = map.get(curr.parent_id)!;
+                path = curr.name + ' / ' + path;
+            }
+            return { ...c, pathName: path };
+        });
+
+        categories.set(enriched);
 
         if (initial.category) {
-            selectedCategory.set(initial.category);
-            inputValue.set(initial.category.name);
+            const initCat = enriched.find(c => c.id === initial.category?.id);
+            selectedCategory.set(initCat || initial.category);
+            inputValue.set(initCat?.pathName || initial.category.name);
         }
 
         if (!hasInitialTimestamp) {
@@ -193,7 +207,7 @@
             <ul class="absolute z-10 bg-white dark:bg-gray-800 border w-fit mt-1 max-h-60 overflow-auto shadow rounded">
                 {#each $filtered as category (category.id)}
                     <li class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-950 cursor-pointer">
-                        <button on:click={() => handleSelect(category)}>{category.name}</button>
+                        <button on:click={() => handleSelect(category)}>{category.pathName}</button>
                     </li>
                 {/each}
                 {#if $filtered.length === 0}

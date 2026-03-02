@@ -43,7 +43,7 @@
 {#if visibleCategories.length}
     <ul class="space-y-4">
         {#each visibleCategories as category (category.id)}
-            <CategoryCard {category} showActions={true} />
+            <CategoryCard {category} allCategories={data.categories} showActions={true} />
         {/each}
 
         <div style="height: {phantomHeight}px; width: 100%"></div>

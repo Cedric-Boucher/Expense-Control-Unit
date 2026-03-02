@@ -5,15 +5,23 @@
     import type { Transaction, Category } from '$lib/types';
     import TransactionCard from '$lib/components/TransactionCard.svelte';
 
-    export let data: { transactions: Transaction[] };
+    export let data: { transactions: Transaction[], categories: Category[] };
 
-    const categories: Category[] = Array.from(
-        new Map(data.transactions.map(tx => [tx.category.id, tx.category])).values()
-    ).sort((a, b) => a.name.localeCompare(b.name));
+    const categoryMap = new Map(data.categories.map(c => [c.id, c]));
 
-    const selectedCategoryIds = writable<Set<number>>(new Set(categories.map(c => c.id)));
+    const categoriesWithPath = data.categories.map(c => {
+        let path = c.name;
+        let curr = c;
+        while (curr.parent_id && categoryMap.has(curr.parent_id)) {
+            curr = categoryMap.get(curr.parent_id)!;
+            path = curr.name + ' / ' + path;
+        }
+        return { ...c, pathName: path };
+    }).sort((a, b) => a.pathName.localeCompare(b.pathName));
 
-    $: isFilterActive = $selectedCategoryIds.size < categories.length;
+    const selectedCategoryIds = writable<Set<number>>(new Set(categoriesWithPath.map(c => c.id)));
+
+    $: isFilterActive = $selectedCategoryIds.size < categoriesWithPath.length;
 
     const filteredTransactions = derived(selectedCategoryIds, $selected =>
         data.transactions.filter(tx => $selected.has(tx.category.id))
@@ -46,8 +54,8 @@
     const searchQuery = writable('');
 
     const visibleCategories = derived(searchQuery, $searchQuery =>
-        categories.filter(cat =>
-            cat.name.toLowerCase().includes($searchQuery.toLowerCase())
+        categoriesWithPath.filter(cat =>
+            cat.pathName.toLowerCase().includes($searchQuery.toLowerCase())
         )
     );
 
@@ -60,7 +68,7 @@
     }
 
     function selectAll() {
-        selectedCategoryIds.set(new Set(categories.map(c => c.id)));
+        selectedCategoryIds.set(new Set(categoriesWithPath.map(c => c.id)));
     }
 
     function clearAll() {
@@ -124,7 +132,7 @@
                                     checked={$selectedCategoryIds.has(cat.id)}
                                     on:change={() => toggleCategory(cat.id)}
                                 />
-                                <span>{cat.name}</span>
+                                <span>{cat.pathName}</span>
                             </label>
                         {/each}
                     {:else}
@@ -156,7 +164,7 @@
 {#if visibleTransactions.length}
     <ul class="space-y-4">
         {#each visibleTransactions as tx (tx.id)}
-            <TransactionCard transaction={tx} showActions={true} />
+            <TransactionCard transaction={tx} allCategories={data.categories} showActions={true} />
         {/each}
 
         <div style="height: {phantomHeight}px; width: 100%"></div>

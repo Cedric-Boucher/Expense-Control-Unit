@@ -28,9 +28,15 @@ export type User = {
 export type Category = {
     id: number;
     name: string;
+    parent_id: number | null;
     created_at: string;
 }
 
 export type NewCategory = {
     name: string;
+    parent_id?: number | null;
 }
+
+export type CategoryNode = Category & {
+    children: CategoryNode[];
+};

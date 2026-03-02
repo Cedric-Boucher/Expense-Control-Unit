@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { getTransactions, getCategories, uploadUserData } from '$lib/api';
-import type { Category, Transaction } from '$lib/types';
+import type { Category, CategoryNode, Transaction } from '$lib/types';
 import { invalidateAll } from '$app/navigation';
 
 export function formatTimestampLocal(isoString: string): string {
@@ -65,4 +65,35 @@ export async function importUserDataFromFile() {
     };
 
     input.click();
+}
+
+export function buildCategoryTree(categories: Category[]): CategoryNode[] {
+    const categoryMap = new Map<number, CategoryNode>();
+    const roots: CategoryNode[] = [];
+
+    // First pass: initialize all categories as nodes with empty children arrays
+    for (const cat of categories) {
+        categoryMap.set(cat.id, { ...cat, children: [] });
+    }
+
+    // Second pass: link them together
+    for (const cat of categories) {
+        const node = categoryMap.get(cat.id)!;
+        
+        if (node.parent_id === null) {
+            // It's a top-level category
+            roots.push(node);
+        } else {
+            // It's a child, so find its parent and append it
+            const parent = categoryMap.get(node.parent_id);
+            if (parent) {
+                parent.children.push(node);
+            } else {
+                // Failsafe: if parent is missing from the list, treat as root
+                roots.push(node);
+            }
+        }
+    }
+
+    return roots; // Returns only the top-level nodes, which contain the rest inside them
 }
