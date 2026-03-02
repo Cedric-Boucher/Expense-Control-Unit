@@ -94,7 +94,7 @@ async fn get_category(
 ) -> impl IntoResponse {
     let existing = sqlx::query!(
         r#"
-        SELECT c.id, c.name, c.created_at, ch.parent_id
+        SELECT c.id, c.name, c.created_at, ch.parent_id as "parent_id?"
         FROM categories c
         LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
         WHERE c.id = $1 AND c.user_id = $2
@@ -115,7 +115,7 @@ async fn get_category(
     let category = Category {
         id: row.id,
         name: row.name,
-        parent_id: Some(row.parent_id),
+        parent_id: row.parent_id, 
         created_at: convert_time_to_chrono(row.created_at),
     };
 
