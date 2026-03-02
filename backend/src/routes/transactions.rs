@@ -22,10 +22,11 @@ async fn list_transactions(
             categories.name as category_name,
             amount,
             transactions.created_at as transaction_created_at,
-            categories.created_at as category_created_at
+            categories.created_at as category_created_at,
+            ch.parent_id
         FROM transactions
-        JOIN categories
-        ON transactions.category_id = categories.id
+        JOIN categories ON transactions.category_id = categories.id
+        LEFT JOIN category_hierarchy ch ON categories.id = ch.category_id
         WHERE transactions.user_id = $1
         ORDER BY transactions.created_at DESC
         "#,
@@ -40,6 +41,7 @@ async fn list_transactions(
         category: Category {
             id: row.category_id,
             name: row.category_name,
+            parent_id: Some(row.parent_id),
             created_at: convert_time_to_chrono(row.category_created_at)
         },
         description: row.transaction_description,
@@ -91,11 +93,12 @@ async fn fetch_category(
 ) -> Category {
     let record = sqlx::query!(
         r#"
-        SELECT id, name, created_at
-        FROM categories
-        WHERE user_id = $1
-        AND id = $2
-        ORDER BY id DESC
+        SELECT c.id, c.name, c.created_at, ch.parent_id
+        FROM categories c
+        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
+        WHERE c.user_id = $1
+        AND c.id = $2
+        ORDER BY c.id DESC
         "#,
         user.id,
         category_id
@@ -103,9 +106,11 @@ async fn fetch_category(
     .fetch_one(&pool)
     .await
     .expect("Failed to fetch category");
+
     Category {
         id: record.id,
         name: record.name,
+        parent_id: Some(record.parent_id),
         created_at: convert_time_to_chrono(record.created_at),
     }
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        UPDATE categories\n        SET\n            name = $1\n        WHERE id = $2\n        RETURNING id, name, created_at\n        ",
+  "query": "\n        SELECT c.id, c.name, c.created_at, ch.parent_id\n        FROM categories c\n        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id\n        WHERE c.id = $1 AND c.user_id = $2\n        ",
   "describe": {
     "columns": [
       {
@@ -17,19 +17,25 @@
         "ordinal": 2,
         "name": "created_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "parent_id",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Int4"
+        "Int4",
+        "Uuid"
       ]
     },
     "nullable": [
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "82d0ac2c7bcff76b8bef98b43f4307ba5e31666c39606f700115e04e35db5e06"
+  "hash": "f8da116c194c6ea57bb5eb5c8b6d81e684bda309d0de44e2967a91ba60cf1eec"
 }

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO category_hierarchy (category_id, parent_id, user_id)\n                VALUES ($1, $2, $3)\n                ON CONFLICT (category_id) \n                DO UPDATE SET parent_id = EXCLUDED.parent_id\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7d5b97abe3c642a81ab180294e50751b19d07b26eda179d5e2401f73603bc878"
+}
