@@ -93,7 +93,7 @@ async fn fetch_category(
 ) -> Category {
     let record = sqlx::query!(
         r#"
-        SELECT c.id, c.name, c.created_at, ch.parent_id
+        SELECT c.id, c.name, c.created_at, ch.parent_id as "parent_id?"
         FROM categories c
         LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
         WHERE c.user_id = $1
@@ -110,7 +110,7 @@ async fn fetch_category(
     Category {
         id: record.id,
         name: record.name,
-        parent_id: Some(record.parent_id),
+        parent_id: record.parent_id, 
         created_at: convert_time_to_chrono(record.created_at),
     }
 }

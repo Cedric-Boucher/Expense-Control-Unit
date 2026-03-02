@@ -16,7 +16,7 @@ async fn list_categories(
 ) -> impl IntoResponse {
     let futures = sqlx::query!(
         r#"
-        SELECT c.id, c.name, c.created_at, ch.parent_id
+        SELECT c.id, c.name, c.created_at, ch.parent_id as "parent_id?"
         FROM categories c
         LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
         WHERE c.user_id = $1
@@ -26,12 +26,12 @@ async fn list_categories(
     )
     .fetch_all(&pool)
     .await
-    .expect("Failed to fetch transactions")
+    .expect("Failed to fetch categories")
     .into_iter()
     .map(async |row| Category {
         id: row.id,
         name: row.name,
-        parent_id: Some(row.parent_id),
+        parent_id: row.parent_id,
         created_at: convert_time_to_chrono(row.created_at)
     });
 
@@ -218,7 +218,7 @@ async fn get_transactions(
     Extension(pool): Extension<PgPool>,
     AuthSession(user): AuthSession
 ) -> impl IntoResponse {
-    let futures = sqlx::query!(
+    let rows: Vec<Transaction> = sqlx::query!(
         r#"
         WITH RECURSIVE category_tree AS (
             -- Base case: the requested category
@@ -232,10 +232,10 @@ async fn get_transactions(
         SELECT
             t.id AS transaction_id, t.description, t.amount, t.created_at AS transaction_created_at,
             c.id AS category_id, c.name, c.created_at AS category_created_at,
-            ch.parent_id -- <-- 1. ADD THIS to the SELECT clause
+            ch.parent_id as "parent_id?"
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
-        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id -- <-- 2. ADD THIS JOIN
+        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
         WHERE c.id IN (SELECT id FROM category_tree)
         AND t.user_id = $2
         ORDER BY t.created_at DESC
@@ -247,20 +247,19 @@ async fn get_transactions(
     .await
     .expect("Failed to fetch category transactions")
     .into_iter()
-    .map(async |row| Transaction {
+    .map(|row| Transaction {
         id: row.transaction_id,
         category: Category { 
             id: row.category_id,
             name: row.name,
-            parent_id: Some(row.parent_id),
+            parent_id: row.parent_id, 
             created_at: convert_time_to_chrono(row.category_created_at),
         },
         description: row.description,
         amount: row.amount.to_f64().unwrap_or(0.0),
         created_at: convert_time_to_chrono(row.transaction_created_at)
-    });
-
-    let rows: Vec<Transaction> = join_all(futures).await;
+    })
+    .collect(); 
 
     Json(rows)
 }
