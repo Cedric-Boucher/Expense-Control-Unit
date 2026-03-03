@@ -20,7 +20,22 @@
         const fetched = await getCategories();
         const map = new Map(fetched.map(c => [c.id, c]));
 
-        const validParents = initial.id ? fetched.filter(c => c.id !== initial.id) : fetched;
+        // Build a Set of invalid parent IDs (the category itself + all descendants)
+        const invalidIds = new Set<number>();
+        if (initial.id) {
+            const queue = [initial.id];
+            while (queue.length > 0) {
+                const currentId = queue.shift()!;
+                invalidIds.add(currentId);
+
+                // Find all direct children of the current ID and queue them up
+                const children = fetched.filter(c => c.parent_id === currentId).map(c => c.id);
+                queue.push(...children);
+            }
+        }
+
+        // Filter out any category that is in the invalid Set
+        const validParents = fetched.filter(c => !invalidIds.has(c.id));
 
         availableParents = validParents.map(c => {
             let path = c.name;

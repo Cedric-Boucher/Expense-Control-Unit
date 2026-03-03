@@ -130,6 +130,36 @@ async fn update_category(
 ) -> impl IntoResponse {
     let mut tx = pool.begin().await.expect("Failed to begin transaction");
 
+    // Check for circular dependencies BEFORE we update anything
+    if let Some(pid) = payload.parent_id {
+        if pid == id {
+            // Cannot parent to itself
+            return Err(StatusCode::BAD_REQUEST);
+        }
+
+        let is_descendant = sqlx::query!(
+            r#"
+            WITH RECURSIVE descendants AS (
+                SELECT category_id FROM category_hierarchy WHERE parent_id = $1
+                UNION ALL
+                SELECT ch.category_id FROM category_hierarchy ch
+                INNER JOIN descendants d ON ch.parent_id = d.category_id
+            )
+            SELECT category_id FROM descendants WHERE category_id = $2
+            "#,
+            id,
+            pid
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .expect("Failed to check descendants");
+
+        if is_descendant.is_some() {
+            // Cannot parent to a descendant (circular loop)
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
     let row = sqlx::query!(
         r#"
         UPDATE categories SET name = $1 WHERE id = $2 AND user_id = $3
@@ -150,7 +180,6 @@ async fn update_category(
 
     match payload.parent_id {
         Some(parent_id) => {
-            // Upsert the new parent
             sqlx::query!(
                 r#"
                 INSERT INTO category_hierarchy (category_id, parent_id, user_id)
@@ -167,7 +196,6 @@ async fn update_category(
             .expect("Failed to update hierarchy link");
         }
         None => {
-            // Remove from hierarchy if moving to top-level
             sqlx::query!(
                 r#"DELETE FROM category_hierarchy WHERE category_id = $1"#,
                 id

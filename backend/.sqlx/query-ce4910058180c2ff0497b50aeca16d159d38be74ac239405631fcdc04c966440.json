@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH RECURSIVE descendants AS (\n                SELECT category_id FROM category_hierarchy WHERE parent_id = $1\n                UNION ALL\n                SELECT ch.category_id FROM category_hierarchy ch\n                INNER JOIN descendants d ON ch.parent_id = d.category_id\n            )\n            SELECT category_id FROM descendants WHERE category_id = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "category_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "ce4910058180c2ff0497b50aeca16d159d38be74ac239405631fcdc04c966440"
+}
