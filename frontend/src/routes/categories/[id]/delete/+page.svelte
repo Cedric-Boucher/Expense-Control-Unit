@@ -1,6 +1,6 @@
 <script lang="ts">
     import { page } from '$app/state';
-    import { getCategory, deleteCategory, getCategoryTransactions } from '$lib/api';
+    import { getCategory, deleteCategory, getCategoryTransactions, getCategories } from '$lib/api';
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
     import type { Category, Transaction } from '$lib/types';
@@ -9,10 +9,12 @@
 
     let category: Category | null = null;
     let transactions: Transaction[] = [];
+    let childCategories: Category[] = [];
     let error = '';
     let loading = true;
 
     const id = page.params.id;
+    const numericId = Number(id);
     const redirectTo = page.url.searchParams.get('redirectTo') ?? '/categories';
 
     onMount(async () => {
@@ -22,10 +24,21 @@
         }
 
         try {
-            category = await getCategory(id);
-            transactions = await getCategoryTransactions(id);
+            // Fetch everything concurrently for better performance
+            const [fetchedCategory, fetchedTransactions, allCategories] = await Promise.all([
+                getCategory(id),
+                getCategoryTransactions(id),
+                getCategories()
+            ]);
+
+            category = fetchedCategory;
+            transactions = fetchedTransactions;
+
+            // Find all categories that have this one as a direct parent
+            childCategories = allCategories.filter(c => c.parent_id === numericId);
+            
         } catch (e) {
-            error = 'Failed to load category or transactions.';
+            error = 'Failed to load category data.';
             console.error(e);
         } finally {
             loading = false;
@@ -59,19 +72,36 @@
     <p class="mb-2">Are you sure you want to delete the following category?</p>
     <CategoryCard {category} showActions={false} />
 
-    {#if transactions.length > 0}
-        <p class="mt-4 text-red-600">
-            This category is currently used by the following transaction{transactions.length > 1 ? 's' : ''}:
-        </p>
-        <ul class="space-y-2 mt-2">
-            {#each transactions as tx}
-                <TransactionCard transaction={tx} showActions={true} />
-            {/each}
-        </ul>
+    {#if transactions.length > 0 || childCategories.length > 0}
+        
+        {#if childCategories.length > 0}
+            <p class="mt-4 text-red-600">
+                This category is a parent to the following child categor{childCategories.length > 1 ? 'ies' : 'y'}:
+            </p>
+            <ul class="space-y-2 mt-2">
+                {#each childCategories as child}
+                    <CategoryCard category={child} showActions={true} />
+                {/each}
+            </ul>
+            <p class="mt-4 mb-6 text-sm text-gray-700 dark:text-gray-300">
+                Please edit these child categories to use a different parent before deleting this category.
+            </p>
+        {/if}
 
-        <p class="mt-4 text-sm text-gray-700 dark:text-gray-300">
-            Please update or delete {transactions.length > 1 ? 'these transactions' : 'this transaction'} before deleting this category.
-        </p>
+        {#if transactions.length > 0}
+            <p class="mt-4 text-red-600">
+                This category is currently used by the following transaction{transactions.length > 1 ? 's' : ''}:
+            </p>
+            <ul class="space-y-2 mt-2">
+                {#each transactions as tx}
+                    <TransactionCard transaction={tx} showActions={true} />
+                {/each}
+            </ul>
+            <p class="mt-4 text-sm text-gray-700 dark:text-gray-300">
+                Please update or delete {transactions.length > 1 ? 'these transactions' : 'this transaction'} before deleting this category.
+            </p>
+        {/if}
+
         <div class="mt-4">
             <button
                 on:click={cancel}
@@ -80,6 +110,7 @@
                 Cancel
             </button>
         </div>
+
     {:else}
         <div class="flex space-x-4 mt-4">
             <button

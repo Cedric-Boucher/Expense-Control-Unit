@@ -223,6 +223,25 @@ async fn delete_category(
     Extension(pool): Extension<PgPool>,
     AuthSession(user): AuthSession
 ) -> impl IntoResponse {
+    // 1. Check if this category is a parent to any children
+    let has_children = sqlx::query!(
+        r#"
+        SELECT 1 AS exists 
+        FROM category_hierarchy 
+        WHERE parent_id = $1
+        LIMIT 1
+        "#,
+        id
+    )
+    .fetch_optional(&pool)
+    .await
+    .expect("Failed to check for child categories");
+
+    if has_children.is_some() {
+        return Err(StatusCode::CONFLICT);
+    }
+
+    // 2. If no children exist, proceed with deletion
     let result = sqlx::query!(
         r#"
         DELETE FROM categories
