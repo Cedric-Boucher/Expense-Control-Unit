@@ -45,8 +45,14 @@ export async function exportUserDataToFile() {
             }
         }
 
+        // Strip IDs from transactions to reduce file size and avoid confusion
+        const exportTransactions = transactions.map(tx => {
+            const { id, ...txData } = tx as any;
+            return txData;
+        });
+
         const exportData = {
-            transactions,
+            transactions: exportTransactions,
             categories: sortedExportCategories
         };
 
