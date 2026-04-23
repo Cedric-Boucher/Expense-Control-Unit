@@ -20,19 +20,24 @@ export async function exportUserDataToFile() {
             getCategories()
         ]);
 
-        // 1. Build the tree to establish relationships
         const roots = buildCategoryTree(categories);
 
-        // 2. Flatten the tree topologically (parents first, then children)
-        const sortedCategories: Category[] = [];
+        const categoryIdToName = new Map(categories.map(c => [c.id, c.name]));
+
+        // Flatten the tree topologically (parents first, then children)
+        const sortedExportCategories = [];
         const queue = [...roots];
 
         while (queue.length > 0) {
             const current = queue.shift()!;
 
-            // Separate the children array from the pure category data
-            const { children, ...categoryData } = current;
-            sortedCategories.push(categoryData as Category);
+            // Extract what we need and map parent_id to parent_name
+            const { id, parent_id, children, ...categoryData } = current;
+
+            sortedExportCategories.push({
+                ...categoryData,
+                parent_name: parent_id ? categoryIdToName.get(parent_id) || null : null
+            });
 
             // Queue up the children for the next passes
             if (children && children.length > 0) {
@@ -42,7 +47,7 @@ export async function exportUserDataToFile() {
 
         const exportData = {
             transactions,
-            categories: sortedCategories
+            categories: sortedExportCategories
         };
 
         const json = JSON.stringify(exportData, null, 2);
@@ -101,19 +106,16 @@ export function buildCategoryTree(categories: Category[]): CategoryNode[] {
         const node = categoryMap.get(cat.id)!;
         
         if (node.parent_id === null) {
-            // It's a top-level category
             roots.push(node);
         } else {
-            // It's a child, so find its parent and append it
             const parent = categoryMap.get(node.parent_id);
             if (parent) {
                 parent.children.push(node);
             } else {
-                // Failsafe: if parent is missing from the list, treat as root
                 roots.push(node);
             }
         }
     }
 
-    return roots; // Returns only the top-level nodes, which contain the rest inside them
+    return roots;
 }
