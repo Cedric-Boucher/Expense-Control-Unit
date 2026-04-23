@@ -20,9 +20,29 @@ export async function exportUserDataToFile() {
             getCategories()
         ]);
 
+        // 1. Build the tree to establish relationships
+        const roots = buildCategoryTree(categories);
+
+        // 2. Flatten the tree topologically (parents first, then children)
+        const sortedCategories: Category[] = [];
+        const queue = [...roots];
+
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+
+            // Separate the children array from the pure category data
+            const { children, ...categoryData } = current;
+            sortedCategories.push(categoryData as Category);
+
+            // Queue up the children for the next passes
+            if (children && children.length > 0) {
+                queue.push(...children);
+            }
+        }
+
         const exportData = {
             transactions,
-            categories
+            categories: sortedCategories
         };
 
         const json = JSON.stringify(exportData, null, 2);
