@@ -177,3 +177,162 @@ pub async fn import_data(
 
     StatusCode::OK
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    // --- Test Helpers ---
+
+    /// Quick constructor for ImportCategory to keep tests clean
+    fn make_cat(name: &str, parent: Option<&str>) -> ImportCategory {
+        ImportCategory {
+            name: name.to_string(),
+            created_at: Utc::now(),
+            parent_name: parent.map(|s| s.to_string()),
+        }
+    }
+
+    /// Verifies that a parent appears before its child in the sorted result
+    fn assert_parent_before_child(sorted: &[ImportCategory], parent_name: &str, child_name: &str) {
+        let parent_idx = sorted.iter().position(|c| c.name == parent_name).unwrap();
+        let child_idx = sorted.iter().position(|c| c.name == child_name).unwrap();
+        assert!(
+            parent_idx < child_idx,
+            "Expected parent '{}' to appear before child '{}'",
+            parent_name, child_name
+        );
+    }
+
+    // --- 🟢 Happy Paths ---
+
+    #[test]
+    fn test_empty_list() {
+        let result = sort_categories_topologically(vec![]);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_flat_categories() {
+        let input = vec![make_cat("A", None), make_cat("B", None), make_cat("C", None)];
+        let result = sort_categories_topologically(input).unwrap();
+        assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn test_simple_tree_already_sorted() {
+        let input = vec![make_cat("Parent", None), make_cat("Child", Some("Parent"))];
+        let result = sort_categories_topologically(input).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_parent_before_child(&result, "Parent", "Child");
+    }
+
+    #[test]
+    fn test_simple_tree_reversed() {
+        let input = vec![make_cat("Child", Some("Parent")), make_cat("Parent", None)];
+        let result = sort_categories_topologically(input).unwrap();
+        assert_parent_before_child(&result, "Parent", "Child");
+    }
+
+    #[test]
+    fn test_deep_hierarchy_shuffled() {
+        let input = vec![
+            make_cat("C", Some("B")),
+            make_cat("A", None),
+            make_cat("B", Some("A")),
+            make_cat("D", Some("C")),
+        ];
+        let result = sort_categories_topologically(input).unwrap();
+        assert_parent_before_child(&result, "A", "B");
+        assert_parent_before_child(&result, "B", "C");
+        assert_parent_before_child(&result, "C", "D");
+    }
+
+    #[test]
+    fn test_multiple_disconnected_trees() {
+        let input = vec![
+            make_cat("ChildB", Some("RootB")),
+            make_cat("RootA", None),
+            make_cat("ChildA", Some("RootA")),
+            make_cat("RootB", None),
+        ];
+        let result = sort_categories_topologically(input).unwrap();
+        assert_parent_before_child(&result, "RootA", "ChildA");
+        assert_parent_before_child(&result, "RootB", "ChildB");
+    }
+
+    // --- 🔴 Error / Validation Paths ---
+
+    #[test]
+    fn test_missing_parent() {
+        let input = vec![make_cat("Child", Some("Ghost"))];
+        let result = sort_categories_topologically(input);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_self_referencing_cycle() {
+        let input = vec![make_cat("A", Some("A"))];
+        let result = sort_categories_topologically(input);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_direct_circular_dependency() {
+        let input = vec![make_cat("A", Some("B")), make_cat("B", Some("A"))];
+        let result = sort_categories_topologically(input);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_deep_circular_dependency() {
+        let input = vec![
+            make_cat("A", Some("C")),
+            make_cat("B", Some("A")),
+            make_cat("C", Some("B")),
+        ];
+        let result = sort_categories_topologically(input);
+        assert!(result.is_err());
+    }
+
+    // --- 🟡 Edge Cases ---
+
+    #[test]
+    fn test_duplicate_category_names() {
+        let input = vec![
+            make_cat("A", None),
+            make_cat("A", Some("B")), // Duplicate overwrites in map
+            make_cat("B", None),
+        ];
+        let result = sort_categories_topologically(input);
+        // Because of the overwrite, the total count mapped won't match the input length
+        assert!(result.is_err()); 
+    }
+
+    #[test]
+    fn test_multiple_children_one_parent() {
+        let input = vec![
+            make_cat("Child1", Some("A")),
+            make_cat("Child2", Some("A")),
+            make_cat("A", None),
+        ];
+        let result = sort_categories_topologically(input).unwrap();
+        assert_parent_before_child(&result, "A", "Child1");
+        assert_parent_before_child(&result, "A", "Child2");
+    }
+
+    #[test]
+    fn test_deep_tree_missing_leaf() {
+        let input = vec![
+            make_cat("A", None),
+            make_cat("B", Some("A")),
+            make_cat("C", Some("B")),
+            make_cat("E", Some("D")), // D is missing
+        ];
+        let result = sort_categories_topologically(input);
+        assert!(result.is_err());
+    }
+}
