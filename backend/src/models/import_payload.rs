@@ -5,6 +5,8 @@ use serde::Deserialize;
 pub struct ImportCategory {
     pub name: String,
     pub created_at: DateTime<Utc>,
+    #[serde(default)]
+    pub parent_name: Option<String>,
 }
 
 #[derive(Deserialize)]
