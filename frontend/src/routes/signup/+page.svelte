@@ -8,7 +8,6 @@
 	let username = '';
 	let password = '';
 	let error = '';
-	let success = false;
 
 	onMount(async () => {
 		await check_login();
@@ -19,7 +18,6 @@
 
 	async function submit() {
 		error = '';
-		success = false;
 
 		if (!username || !password) {
 			error = 'Username and password are required.';
@@ -33,7 +31,6 @@
 
 		try {
 			await signup(payload);
-			success = true;
 			goto('/transactions');
 		} catch (e) {
 			const err = e as Error;
