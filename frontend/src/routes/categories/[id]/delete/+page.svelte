@@ -66,7 +66,7 @@
 				: ''}:
 		</p>
 		<ul class="space-y-2 mt-2">
-			{#each transactions as tx}
+			{#each transactions as tx (tx.id)}
 				<TransactionCard transaction={tx} showActions={true} />
 			{/each}
 		</ul>
