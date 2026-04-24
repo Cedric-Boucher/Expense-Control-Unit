@@ -72,8 +72,9 @@
 		</ul>
 
 		<p class="mt-4 text-sm text-gray-700 dark:text-gray-300">
-			Please update or delete {transactions.length > 1 ? 'these transactions' : 'this transaction'} before
-			deleting this category.
+			Please update or delete {transactions.length > 1
+				? 'these transactions'
+				: 'this transaction'} before deleting this category.
 		</p>
 		<div class="mt-4">
 			<button

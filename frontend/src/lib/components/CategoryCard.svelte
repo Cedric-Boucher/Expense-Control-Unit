@@ -15,7 +15,9 @@
 		if (onEdit) {
 			onEdit();
 		} else {
-			goto(`/categories/${category.id}/edit?redirectTo=${encodeURIComponent(page.url.pathname)}`);
+			goto(
+				`/categories/${category.id}/edit?redirectTo=${encodeURIComponent(page.url.pathname)}`
+			);
 		}
 	}
 
@@ -23,7 +25,9 @@
 		if (onDelete) {
 			onDelete();
 		} else {
-			goto(`/categories/${category.id}/delete?redirectTo=${encodeURIComponent(page.url.pathname)}`);
+			goto(
+				`/categories/${category.id}/delete?redirectTo=${encodeURIComponent(page.url.pathname)}`
+			);
 		}
 	}
 </script>

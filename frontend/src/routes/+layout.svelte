@@ -35,7 +35,8 @@
 	function navButtonClasses(pathPrefix: string): string {
 		const base = 'px-3 py-2 rounded font-medium';
 		const active = 'bg-blue-100 dark:bg-gray-700 text-blue-900 dark:text-white';
-		const inactive = 'hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300';
+		const inactive =
+			'hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300';
 
 		return `${base} ${currentPath.startsWith(pathPrefix) ? active : inactive}`;
 	}
@@ -43,14 +44,21 @@
 
 <svelte:head>
 	<title>Expense Control Unit</title>
-	<link rel="icon" href={darkMode ? '/favicon-dark.svg' : '/favicon-light.svg'} type="image/svg" />
+	<link
+		rel="icon"
+		href={darkMode ? '/favicon-dark.svg' : '/favicon-light.svg'}
+		type="image/svg"
+	/>
 </svelte:head>
 
 <nav class="bg-white dark:bg-gray-800 shadow sticky top-0 z-50">
 	<div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
 		{#if $auth.isLoggedIn}
 			<div class="flex gap-4">
-				<button onclick={() => goto('/transactions')} class={navButtonClasses('/transactions')}>
+				<button
+					onclick={() => goto('/transactions')}
+					class={navButtonClasses('/transactions')}
+				>
 					Transactions
 				</button>
 				<button onclick={() => goto('/categories')} class={navButtonClasses('/categories')}>

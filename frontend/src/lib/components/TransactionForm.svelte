@@ -179,7 +179,8 @@
                     {$isExpense ? 'translate-x-1' : 'translate-x-7'}"
 			></span>
 		</button>
-		<span class="font-medium {$isExpense ? 'text-gray-500 dark:text-gray-300' : 'text-green-600'}"
+		<span
+			class="font-medium {$isExpense ? 'text-gray-500 dark:text-gray-300' : 'text-green-600'}"
 			>Income</span
 		>
 	</div>
