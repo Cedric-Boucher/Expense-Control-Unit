@@ -11,16 +11,17 @@
 
 	let limit = BATCH_SIZE;
 
-	$: {
-		data.categories;
-		limit = BATCH_SIZE;
-		if (typeof window !== 'undefined') window.scrollTo(0, 0);
+	function loadMore() {
+		if (limit < data.categories.length) {
+			limit += BATCH_SIZE;
+			setTimeout(loadMore, 0);
+		}
 	}
 
-	$: if (limit < data.categories.length) {
-		setTimeout(() => {
-			limit += BATCH_SIZE;
-		}, 0);
+	$: if (data.categories) {
+		limit = BATCH_SIZE;
+		if (typeof window !== 'undefined') window.scrollTo(0, 0);
+		setTimeout(loadMore, 0);
 	}
 
 	$: visibleCategories = data.categories.slice(0, limit);
