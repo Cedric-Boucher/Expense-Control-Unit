@@ -71,23 +71,21 @@
 	<p class="mb-2">Are you sure you want to delete the following category?</p>
 	<CategoryCard {category} showActions={false} />
 
-	{#if transactions.length > 0 || childCategories.length > 0}
-		{#if childCategories.length > 0}
-			<p class="mt-4 text-red-600">
-				This category is a parent to the following child categor{childCategories.length > 1
-					? 'ies'
-					: 'y'}:
-			</p>
-			<ul class="space-y-2 mt-2">
-				{#each childCategories as child (child.id)}
-					<CategoryCard category={child} showActions={true} />
-				{/each}
-			</ul>
-			<p class="mt-4 mb-6 text-sm text-gray-700 dark:text-gray-300">
-				Please edit these child categories to use a different parent before deleting this
-				category.
-			</p>
-		{/if}
+	{#if childCategories.length > 0}
+		<p class="mt-4 text-red-600">
+			This category is a parent to the following child categor{childCategories.length > 1
+				? 'ies'
+				: 'y'}:
+		</p>
+		<ul class="space-y-2 mt-2">
+			{#each childCategories as child (child.id)}
+				<CategoryCard category={child} showActions={true} />
+			{/each}
+		</ul>
+		<p class="mt-4 mb-6 text-sm text-gray-700 dark:text-gray-300">
+			Please edit these child categories to use a different parent before deleting this
+			category.
+		</p>
 	{/if}
 
 	{#if transactions.length > 0}
