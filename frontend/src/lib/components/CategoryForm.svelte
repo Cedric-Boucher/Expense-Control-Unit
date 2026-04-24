@@ -1,27 +1,32 @@
 <script lang="ts">
-	import { writable, get } from 'svelte/store';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { getCategories } from '$lib/api';
 	import type { Category, NewCategory } from '$lib/types';
 	import { SvelteSet } from 'svelte/reactivity';
 
-	export let initial: Partial<Category> = {};
-	export let onSubmit: (data: NewCategory) => Promise<void>;
-	export let submitLabel = 'Submit';
-	export let showCancel = false;
+	let {
+		initial = {},
+		onSubmit,
+		submitLabel = 'Submit',
+		showCancel = false
+	}: {
+		initial?: Partial<Category>;
+		onSubmit: (data: NewCategory) => Promise<void>;
+		submitLabel?: string;
+		showCancel?: boolean;
+	} = $props();
 
-	const name = writable(initial.name ?? '');
-	const parentId = writable<number | string>(initial.parent_id ?? 'none');
-	let error = '';
+	let name = $state(untrack(() => initial.name ?? ''));
+	let parentId = $state<number | string>(untrack(() => initial.parent_id ?? 'none'));
+	let error = $state('');
 
-	let availableParents: { id: number; pathName: string }[] = [];
+	let availableParents = $state<{ id: number; pathName: string }[]>([]);
 
 	onMount(async () => {
 		const fetched = await getCategories();
 		const map = new Map(fetched.map((c) => [c.id, c]));
 
-		// Build a Set of invalid parent IDs (the category itself + all descendants)
 		const invalidIds = new SvelteSet<number>();
 		if (initial.id) {
 			const queue = [initial.id];
@@ -29,13 +34,11 @@
 				const currentId = queue.shift()!;
 				invalidIds.add(currentId);
 
-				// Find all direct children of the current ID and queue them up
 				const children = fetched.filter((c) => c.parent_id === currentId).map((c) => c.id);
 				queue.push(...children);
 			}
 		}
 
-		// Filter out any category that is in the invalid Set
 		const validParents = fetched.filter((c) => !invalidIds.has(c.id));
 
 		availableParents = validParents
@@ -53,17 +56,16 @@
 
 	async function submit() {
 		error = '';
-		const $name = get(name).trim();
-		const $parentId = get(parentId);
+		const trimmedName = name.trim();
 
-		if (!$name) {
+		if (!trimmedName) {
 			error = 'Name is required.';
 			return;
 		}
 
 		const payload: NewCategory = {
-			name: $name,
-			parent_id: $parentId === 'none' ? null : Number($parentId)
+			name: trimmedName,
+			parent_id: parentId === 'none' ? null : Number(parentId)
 		};
 
 		try {
@@ -79,17 +81,17 @@
 	}
 </script>
 
-<form on:submit|preventDefault={submit} class="space-y-4 max-w-md">
+<form onsubmit={submit} class="space-y-4 max-w-md">
 	<div>
 		<label for="name" class="block font-medium">Category Name</label>
-		<input id="name" bind:value={$name} class="w-full p-2 border rounded" />
+		<input id="name" bind:value={name} class="w-full p-2 border rounded" />
 	</div>
 
 	<div>
 		<label for="parent" class="block font-medium">Parent Category</label>
 		<select
 			id="parent"
-			bind:value={$parentId}
+			bind:value={parentId}
 			class="w-full p-2 border rounded bg-white dark:bg-gray-800"
 		>
 			<option value="none">-- Top Level (No Parent) --</option>
@@ -106,7 +108,7 @@
 		{#if showCancel}
 			<button
 				type="button"
-				on:click={cancel}
+				onclick={cancel}
 				class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
 			>
 				Cancel

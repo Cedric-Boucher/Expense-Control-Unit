@@ -2,32 +2,37 @@
 	import { page } from '$app/state';
 	import { getCategory, deleteCategory, getCategoryTransactions, getCategories } from '$lib/api';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 	import type { Category, Transaction } from '$lib/types';
 	import CategoryCard from '$lib/components/CategoryCard.svelte';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
 
-	let category: Category | null = null;
-	let transactions: Transaction[] = [];
-	let childCategories: Category[] = [];
-	let error = '';
-	let loading = true;
+	let category = $state<Category | null>(null);
+	let transactions = $state<Transaction[]>([]);
+	let childCategories = $state<Category[]>([]);
+	let error = $state('');
+	let loading = $state(true);
 
-	const id = page.params.id;
-	const numericId = Number(id);
-	const redirectTo = page.url.searchParams.get('redirectTo') ?? '/categories';
+	let id = $derived(page.params.id);
+	let numericId = $derived(Number(id));
+	let redirectTo = $derived(page.url.searchParams.get('redirectTo') ?? '/categories');
 
-	onMount(async () => {
-		if (!id) {
-			goto(redirectTo);
-			return;
+	$effect(() => {
+		if (id) {
+			loadData(id, numericId);
+		} else {
+			if (redirectTo) goto(redirectTo);
 		}
+	});
+
+	async function loadData(currentId: string, currentNumericId: number) {
+		loading = true;
+		error = ''; // Clear any previous errors when loading new data
 
 		try {
 			// Fetch everything concurrently for better performance
 			const [fetchedCategory, fetchedTransactions, allCategories] = await Promise.all([
-				getCategory(id),
-				getCategoryTransactions(id),
+				getCategory(currentId),
+				getCategoryTransactions(currentId),
 				getCategories()
 			]);
 
@@ -35,14 +40,14 @@
 			transactions = fetchedTransactions;
 
 			// Find all categories that have this one as a direct parent
-			childCategories = allCategories.filter((c) => c.parent_id === numericId);
+			childCategories = allCategories.filter((c) => c.parent_id === currentNumericId);
 		} catch (e) {
 			error = 'Failed to load category data.';
 			console.error(e);
 		} finally {
 			loading = false;
 		}
-	});
+	}
 
 	async function confirmDelete() {
 		try {
@@ -107,7 +112,7 @@
 		</p>
 		<div class="mt-4">
 			<button
-				on:click={cancel}
+				onclick={cancel}
 				class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
 			>
 				Cancel
@@ -116,13 +121,13 @@
 	{:else}
 		<div class="flex space-x-4 mt-4">
 			<button
-				on:click={confirmDelete}
+				onclick={confirmDelete}
 				class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
 			>
 				Yes, Delete
 			</button>
 			<button
-				on:click={cancel}
+				onclick={cancel}
 				class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
 			>
 				Cancel

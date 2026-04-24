@@ -1,22 +1,31 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { getTransaction, updateTransaction } from '$lib/api';
 	import { goto } from '$app/navigation';
 	import TransactionForm from '$lib/components/TransactionForm.svelte';
 	import type { NewTransaction, Transaction } from '$lib/types';
 
-	let transaction: Transaction | null = null;
-	const id = page.params.id;
-	const redirectTo = page.url.searchParams.get('redirectTo') ?? '/transactions';
+	let transaction = $state<Transaction | null>(null);
 
-	onMount(async () => {
+	let id = $derived(page.params.id);
+	let redirectTo = $derived(page.url.searchParams.get('redirectTo') ?? '/transactions');
+
+	$effect(() => {
 		if (id) {
-			transaction = await getTransaction(id);
+			loadData(id);
 		} else {
-			goto(redirectTo);
+			if (redirectTo) goto(redirectTo);
 		}
 	});
+
+	async function loadData(currentId: string) {
+		transaction = null;
+		try {
+			transaction = await getTransaction(currentId);
+		} catch (e) {
+			console.error('Failed to load transaction:', e);
+		}
+	}
 
 	async function handleUpdate(data: NewTransaction) {
 		if (id) {

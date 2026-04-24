@@ -4,14 +4,21 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
-	export let transaction: Transaction;
-	export let allCategories: Category[] = [];
-	export let showActions: boolean = true;
+	let {
+		transaction,
+		allCategories = [],
+		showActions = true,
+		onEdit = null,
+		onDelete = null
+	}: {
+		transaction: Transaction;
+		allCategories?: Category[];
+		showActions?: boolean;
+		onEdit?: (() => void) | null;
+		onDelete?: (() => void) | null;
+	} = $props();
 
-	export let onEdit: (() => void) | null = null;
-	export let onDelete: (() => void) | null = null;
-
-	$: path = computePathParts(transaction.category, allCategories);
+	let path = $derived(computePathParts(transaction.category, allCategories));
 
 	function computePathParts(targetCat: Category, cats: Category[]) {
 		if (!cats.length) return { parentPath: '', name: targetCat.name };
@@ -74,12 +81,12 @@
 			<button
 				type="button"
 				class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-				on:click={handleEdit}>Edit</button
+				onclick={handleEdit}>Edit</button
 			>
 			<button
 				type="button"
 				class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-				on:click={handleDelete}>Delete</button
+				onclick={handleDelete}>Delete</button
 			>
 		</div>
 	{/if}

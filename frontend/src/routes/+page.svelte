@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { redirect } from '@sveltejs/kit';
 
-	onMount(() => {
-		goto('/transactions');
-	});
+	export function load() {
+		redirect(302, '/transactions');
+	}
 </script>
