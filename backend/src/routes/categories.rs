@@ -16,20 +16,22 @@ async fn list_categories(
 ) -> impl IntoResponse {
     let futures = sqlx::query!(
         r#"
-        SELECT id, name, created_at
-        FROM categories
-        WHERE user_id = $1
-        ORDER BY name ASC
+        SELECT c.id, c.name, c.created_at, ch.parent_id as "parent_id?"
+        FROM categories c
+        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
+        WHERE c.user_id = $1
+        ORDER BY c.name ASC
         "#,
         user.id
     )
     .fetch_all(&pool)
     .await
-    .expect("Failed to fetch transactions")
+    .expect("Failed to fetch categories")
     .into_iter()
     .map(async |row| Category {
         id: row.id,
         name: row.name,
+        parent_id: row.parent_id,
         created_at: convert_time_to_chrono(row.created_at)
     });
 
@@ -43,6 +45,8 @@ pub async fn create_category(
     AuthSession(user): AuthSession,
     Json(payload): Json<NewCategory>,
 ) -> Json<Category> {
+    let mut tx = pool.begin().await.expect("Failed to begin transaction");
+
     let record = sqlx::query!(
         r#"
         INSERT INTO categories (user_id, name)
@@ -52,13 +56,31 @@ pub async fn create_category(
         user.id,
         payload.name,
     )
-    .fetch_one(&pool)
+    .fetch_one(&mut *tx)
     .await
     .expect("Failed to insert transaction");
+
+    if let Some(parent_id) = payload.parent_id {
+        sqlx::query!(
+            r#"
+            INSERT INTO category_hierarchy (category_id, parent_id, user_id)
+            VALUES ($1, $2, $3)
+            "#,
+            record.id,
+            parent_id,
+            user.id
+        )
+        .execute(&mut *tx)
+        .await
+        .expect("Failed to insert hierarchy link");
+    }
+
+    tx.commit().await.expect("Failed to commit transaction");
 
     let result = Category {
         id: record.id,
         name: record.name,
+        parent_id: payload.parent_id,
         created_at: convert_time_to_chrono(record.created_at)
     };
 
@@ -72,9 +94,10 @@ async fn get_category(
 ) -> impl IntoResponse {
     let existing = sqlx::query!(
         r#"
-        SELECT id, name, created_at
-        FROM categories
-        WHERE id = $1 AND user_id = $2
+        SELECT c.id, c.name, c.created_at, ch.parent_id as "parent_id?"
+        FROM categories c
+        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
+        WHERE c.id = $1 AND c.user_id = $2
         "#,
         id,
         user.id
@@ -92,6 +115,7 @@ async fn get_category(
     let category = Category {
         id: row.id,
         name: row.name,
+        parent_id: row.parent_id, 
         created_at: convert_time_to_chrono(row.created_at),
     };
 
@@ -104,40 +128,90 @@ async fn update_category(
     AuthSession(user): AuthSession,
     Json(payload): Json<NewCategory>,
 ) -> impl IntoResponse {
-    let existing = sqlx::query!(
-        r#"
-        SELECT id FROM categories
-        WHERE id = $1 AND user_id = $2
-        "#,
-        id,
-        user.id
-    )
-    .fetch_optional(&pool)
-    .await
-    .expect("Failed to fetch category");
+    let mut tx = pool.begin().await.expect("Failed to begin transaction");
 
-    if existing.is_none() {
-        return Err(StatusCode::NOT_FOUND);
+    // Check for circular dependencies BEFORE we update anything
+    if let Some(pid) = payload.parent_id {
+        if pid == id {
+            // Cannot parent to itself
+            return Err(StatusCode::BAD_REQUEST);
+        }
+
+        let is_descendant = sqlx::query!(
+            r#"
+            WITH RECURSIVE descendants AS (
+                SELECT category_id FROM category_hierarchy WHERE parent_id = $1
+                UNION ALL
+                SELECT ch.category_id FROM category_hierarchy ch
+                INNER JOIN descendants d ON ch.parent_id = d.category_id
+            )
+            SELECT category_id FROM descendants WHERE category_id = $2
+            "#,
+            id,
+            pid
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .expect("Failed to check descendants");
+
+        if is_descendant.is_some() {
+            // Cannot parent to a descendant (circular loop)
+            return Err(StatusCode::BAD_REQUEST);
+        }
     }
 
     let row = sqlx::query!(
         r#"
-        UPDATE categories
-        SET
-            name = $1
-        WHERE id = $2
+        UPDATE categories SET name = $1 WHERE id = $2 AND user_id = $3
         RETURNING id, name, created_at
         "#,
         payload.name,
-        id
+        id,
+        user.id
     )
-    .fetch_one(&pool)
+    .fetch_optional(&mut *tx)
     .await
     .expect("Failed to update category");
+
+    if row.is_none() {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let row = row.unwrap();
+
+    match payload.parent_id {
+        Some(parent_id) => {
+            sqlx::query!(
+                r#"
+                INSERT INTO category_hierarchy (category_id, parent_id, user_id)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (category_id) 
+                DO UPDATE SET parent_id = EXCLUDED.parent_id
+                "#,
+                id,
+                parent_id,
+                user.id
+            )
+            .execute(&mut *tx)
+            .await
+            .expect("Failed to update hierarchy link");
+        }
+        None => {
+            sqlx::query!(
+                r#"DELETE FROM category_hierarchy WHERE category_id = $1"#,
+                id
+            )
+            .execute(&mut *tx)
+            .await
+            .expect("Failed to delete hierarchy link");
+        }
+    }
+
+    tx.commit().await.expect("Failed to commit transaction");
 
     let updated = Category {
         id: row.id,
         name: row.name,
+        parent_id: payload.parent_id,
         created_at: convert_time_to_chrono(row.created_at),
     };
 
@@ -149,6 +223,25 @@ async fn delete_category(
     Extension(pool): Extension<PgPool>,
     AuthSession(user): AuthSession
 ) -> impl IntoResponse {
+    // 1. Check if this category is a parent to any children
+    let has_children = sqlx::query!(
+        r#"
+        SELECT 1 AS exists 
+        FROM category_hierarchy 
+        WHERE parent_id = $1
+        LIMIT 1
+        "#,
+        id
+    )
+    .fetch_optional(&pool)
+    .await
+    .expect("Failed to check for child categories");
+
+    if has_children.is_some() {
+        return Err(StatusCode::CONFLICT);
+    }
+
+    // 2. If no children exist, proceed with deletion
     let result = sqlx::query!(
         r#"
         DELETE FROM categories
@@ -172,17 +265,27 @@ async fn get_transactions(
     Extension(pool): Extension<PgPool>,
     AuthSession(user): AuthSession
 ) -> impl IntoResponse {
-    let futures = sqlx::query!(
+    let rows: Vec<Transaction> = sqlx::query!(
         r#"
+        WITH RECURSIVE category_tree AS (
+            -- Base case: the requested category
+            SELECT id FROM categories WHERE id = $1 AND user_id = $2
+            UNION ALL
+            -- Recursive step: find all children of the categories in the tree
+            SELECT ch.category_id
+            FROM category_hierarchy ch
+            INNER JOIN category_tree ct ON ch.parent_id = ct.id
+        )
         SELECT
-            transactions.id AS transaction_id, transactions.description, transactions.amount, transactions.created_at AS transaction_created_at,
-            categories.id AS category_id, categories.name, categories.created_at AS category_created_at
-        FROM categories
-        JOIN transactions ON categories.id = transactions.category_id
-        WHERE categories.id = $1
-        AND categories.user_id = $2
-        AND transactions.user_id = $2
-        ORDER BY transactions.created_at DESC
+            t.id AS transaction_id, t.description, t.amount, t.created_at AS transaction_created_at,
+            c.id AS category_id, c.name, c.created_at AS category_created_at,
+            ch.parent_id as "parent_id?"
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
+        WHERE c.id IN (SELECT id FROM category_tree)
+        AND t.user_id = $2
+        ORDER BY t.created_at DESC
         "#,
         id,
         user.id
@@ -191,19 +294,19 @@ async fn get_transactions(
     .await
     .expect("Failed to fetch category transactions")
     .into_iter()
-    .map(async |row| Transaction {
+    .map(|row| Transaction {
         id: row.transaction_id,
-        category: Category { // to be fair these should all be the same, but whatever
+        category: Category { 
             id: row.category_id,
             name: row.name,
+            parent_id: row.parent_id, 
             created_at: convert_time_to_chrono(row.category_created_at),
         },
         description: row.description,
         amount: row.amount.to_f64().unwrap_or(0.0),
         created_at: convert_time_to_chrono(row.transaction_created_at)
-    });
-
-    let rows: Vec<Transaction> = join_all(futures).await;
+    })
+    .collect(); 
 
     Json(rows)
 }

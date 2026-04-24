@@ -2,7 +2,14 @@
 	import TransactionForm from '$lib/components/TransactionForm.svelte';
 	import { createTransaction } from '$lib/api';
 	import { goto } from '$app/navigation';
+	import { auth } from '$lib/stores/auth.svelte';
 	import type { NewTransaction } from '$lib/types';
+
+	$effect(() => {
+		if (!auth.isLoggedIn) {
+			goto('/login');
+		}
+	});
 
 	async function handleCreate(payload: NewTransaction) {
 		await createTransaction(payload);

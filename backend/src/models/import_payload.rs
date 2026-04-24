@@ -5,11 +5,13 @@ use serde::Deserialize;
 pub struct ImportCategory {
     pub name: String,
     pub created_at: DateTime<Utc>,
+    #[serde(default)]
+    pub parent_name: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct ImportTransaction {
-    pub category: ImportCategory,
+    pub category_name: String,
     pub description: String,
     pub amount: f64,
     pub created_at: DateTime<Utc>,

@@ -1,41 +1,68 @@
 <script lang="ts">
-	import type { Transaction } from '$lib/types';
+	import type { Transaction, Category } from '$lib/types';
 	import { formatTimestampLocalForDisplay } from '$lib/utils';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
-	export let transaction: Transaction;
-	export let showActions: boolean = true;
+	let {
+		transaction,
+		allCategories = [],
+		showActions = true,
+		onEdit = null,
+		onDelete = null
+	}: {
+		transaction: Transaction;
+		allCategories?: Category[];
+		showActions?: boolean;
+		onEdit?: (() => void) | null;
+		onDelete?: (() => void) | null;
+	} = $props();
 
-	// Optional overrides
-	export let onEdit: (() => void) | null = null;
-	export let onDelete: (() => void) | null = null;
+	let path = $derived(computePathParts(transaction.category, allCategories));
+
+	function computePathParts(targetCat: Category, cats: Category[]) {
+		if (!cats.length) return { parentPath: '', name: targetCat.name };
+
+		const map = new Map(cats.map((c) => [c.id, c]));
+		let current = targetCat;
+		const parents = [];
+
+		while (current.parent_id && map.has(current.parent_id)) {
+			current = map.get(current.parent_id)!;
+			parents.unshift(current.name);
+		}
+
+		return {
+			parentPath: parents.length > 0 ? parents.join(' / ') + ' / ' : '',
+			name: targetCat.name
+		};
+	}
 
 	function handleEdit() {
-		if (onEdit) {
-			onEdit();
-		} else {
+		if (onEdit) onEdit();
+		else
 			goto(
 				`/transactions/${transaction.id}/edit?redirectTo=${encodeURIComponent(page.url.pathname)}`
 			);
-		}
 	}
 
 	function handleDelete() {
-		if (onDelete) {
-			onDelete();
-		} else {
+		if (onDelete) onDelete();
+		else
 			goto(
 				`/transactions/${transaction.id}/delete?redirectTo=${encodeURIComponent(page.url.pathname)}`
 			);
-		}
 	}
 </script>
 
 <li class="bg-white dark:bg-gray-800 shadow rounded p-4 flex justify-between items-start gap-4">
-	<!-- Left: transaction details -->
 	<div>
-		<div class="text-2xl font-bold">{transaction.category.name}</div>
+		<div class="text-2xl font-bold">
+			{#if path.parentPath}
+				<span class="text-gray-400 font-normal text-lg">{path.parentPath}</span>
+			{/if}
+			{path.name}
+		</div>
 		<div class="font-medium">{transaction.description}</div>
 		<div
 			class={transaction.amount > 0
@@ -49,23 +76,18 @@
 		</div>
 	</div>
 
-	<!-- Right: actions -->
 	{#if showActions}
 		<div class="flex flex-col gap-2">
 			<button
 				type="button"
 				class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-				on:click={handleEdit}
+				onclick={handleEdit}>Edit</button
 			>
-				Edit
-			</button>
 			<button
 				type="button"
 				class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-				on:click={handleDelete}
+				onclick={handleDelete}>Delete</button
 			>
-				Delete
-			</button>
 		</div>
 	{/if}
 </li>

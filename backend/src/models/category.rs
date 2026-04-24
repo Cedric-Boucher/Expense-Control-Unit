@@ -5,10 +5,12 @@ use serde::{Serialize, Deserialize};
 pub struct Category {
     pub id: i32,
     pub name: String,
+    pub parent_id: Option<i32>,
     pub created_at: DateTime<Utc>,
 }
 
 #[derive(Deserialize)]
 pub struct NewCategory {
     pub name: String,
+    pub parent_id: Option<i32>,
 }

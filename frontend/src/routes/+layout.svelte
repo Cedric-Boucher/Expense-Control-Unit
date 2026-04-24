@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { auth } from '$lib/stores/auth';
+	import { auth } from '$lib/stores/auth.svelte';
 	import { goto } from '$app/navigation';
 	import '../app.css';
 	import { onMount, type Snippet } from 'svelte';
@@ -53,7 +53,7 @@
 
 <nav class="bg-white dark:bg-gray-800 shadow sticky top-0 z-50">
 	<div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-		{#if $auth.isLoggedIn}
+		{#if auth.isLoggedIn}
 			<div class="flex gap-4">
 				<button
 					onclick={() => goto('/transactions')}
@@ -68,7 +68,7 @@
 		{/if}
 
 		<div class="flex gap-4">
-			{#if $auth.isLoggedIn}
+			{#if auth.isLoggedIn}
 				<button
 					onclick={logout}
 					class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-red-500 dark:text-red-500 font-medium"
@@ -89,7 +89,7 @@
 					Sign Up
 				</button>
 			{/if}
-			{#if $auth.isLoggedIn}
+			{#if auth.isLoggedIn}
 				<button
 					onclick={importUserDataFromFile}
 					class="px-3 py-2 rounded hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium"

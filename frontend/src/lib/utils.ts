@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { getTransactions, getCategories, uploadUserData } from '$lib/api';
-import type { Category, Transaction } from '$lib/types';
+import type { Category, CategoryNode, Transaction } from '$lib/types';
 import { invalidateAll } from '$app/navigation';
 
 export function formatTimestampLocal(isoString: string): string {
@@ -20,9 +20,45 @@ export async function exportUserDataToFile() {
 			getCategories()
 		]);
 
+		const roots = buildCategoryTree(categories);
+
+		const categoryIdToName = new Map(categories.map((c) => [c.id, c.name]));
+
+		// Flatten the tree topologically (parents first, then children)
+		const sortedExportCategories = [];
+		const queue = [...roots];
+
+		while (queue.length > 0) {
+			const current = queue.shift()!;
+
+			// Extract what we need and map parent_id to parent_name
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			const { id, parent_id, children, ...categoryData } = current;
+
+			sortedExportCategories.push({
+				...categoryData,
+				parent_name: parent_id ? categoryIdToName.get(parent_id) || null : null
+			});
+
+			// Queue up the children for the next passes
+			if (children && children.length > 0) {
+				queue.push(...children);
+			}
+		}
+
+		// Strip IDs from transactions to reduce file size and avoid confusion
+		const exportTransactions = transactions.map((tx) => {
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			const { id, category, ...txData } = tx;
+			return {
+				...txData,
+				category_name: category.name
+			};
+		});
+
 		const exportData = {
-			transactions,
-			categories
+			transactions: exportTransactions,
+			categories: sortedExportCategories
 		};
 
 		const json = JSON.stringify(exportData, null, 2);
@@ -65,4 +101,32 @@ export async function importUserDataFromFile() {
 	};
 
 	input.click();
+}
+
+export function buildCategoryTree(categories: Category[]): CategoryNode[] {
+	const categoryMap = new Map<number, CategoryNode>();
+	const roots: CategoryNode[] = [];
+
+	// First pass: initialize all categories as nodes with empty children arrays
+	for (const cat of categories) {
+		categoryMap.set(cat.id, { ...cat, children: [] });
+	}
+
+	// Second pass: link them together
+	for (const cat of categories) {
+		const node = categoryMap.get(cat.id)!;
+
+		if (node.parent_id === null) {
+			roots.push(node);
+		} else {
+			const parent = categoryMap.get(node.parent_id);
+			if (parent) {
+				parent.children.push(node);
+			} else {
+				roots.push(node);
+			}
+		}
+	}
+
+	return roots;
 }

@@ -1,26 +1,72 @@
 <script lang="ts">
-	import { writable, get } from 'svelte/store';
 	import { goto } from '$app/navigation';
+	import { onMount, untrack } from 'svelte';
+	import { getCategories } from '$lib/api';
 	import type { Category, NewCategory } from '$lib/types';
+	import { SvelteSet } from 'svelte/reactivity';
 
-	export let initial: Partial<Category> = {};
-	export let onSubmit: (data: NewCategory) => Promise<void>;
-	export let submitLabel = 'Submit';
-	export let showCancel = false;
+	let {
+		initial = {},
+		onSubmit,
+		submitLabel = 'Submit',
+		showCancel = false
+	}: {
+		initial?: Partial<Category>;
+		onSubmit: (data: NewCategory) => Promise<void>;
+		submitLabel?: string;
+		showCancel?: boolean;
+	} = $props();
 
-	const name = writable(initial.name ?? '');
-	let error = '';
+	let name = $state(untrack(() => initial.name ?? ''));
+	let parentId = $state<number | string>(untrack(() => initial.parent_id ?? 'none'));
+	let error = $state('');
+
+	let availableParents = $state<{ id: number; pathName: string }[]>([]);
+
+	onMount(async () => {
+		const fetched = await getCategories();
+		const map = new Map(fetched.map((c) => [c.id, c]));
+
+		const invalidIds = new SvelteSet<number>();
+		if (initial.id) {
+			const queue = [initial.id];
+			while (queue.length > 0) {
+				const currentId = queue.shift()!;
+				invalidIds.add(currentId);
+
+				const children = fetched.filter((c) => c.parent_id === currentId).map((c) => c.id);
+				queue.push(...children);
+			}
+		}
+
+		const validParents = fetched.filter((c) => !invalidIds.has(c.id));
+
+		availableParents = validParents
+			.map((c) => {
+				let path = c.name;
+				let curr = c;
+				while (curr.parent_id && map.has(curr.parent_id)) {
+					curr = map.get(curr.parent_id)!;
+					path = curr.name + ' / ' + path;
+				}
+				return { id: c.id, pathName: path };
+			})
+			.sort((a, b) => a.pathName.localeCompare(b.pathName));
+	});
 
 	async function submit() {
 		error = '';
-		const $name = get(name).trim();
+		const trimmedName = name.trim();
 
-		if (!$name) {
+		if (!trimmedName) {
 			error = 'Name is required.';
 			return;
 		}
 
-		const payload: NewCategory = { name: $name };
+		const payload: NewCategory = {
+			name: trimmedName,
+			parent_id: parentId === 'none' ? null : Number(parentId)
+		};
 
 		try {
 			await onSubmit(payload);
@@ -35,10 +81,24 @@
 	}
 </script>
 
-<form on:submit|preventDefault={submit} class="space-y-4 max-w-md">
+<form onsubmit={submit} class="space-y-4 max-w-md">
 	<div>
 		<label for="name" class="block font-medium">Category Name</label>
-		<input id="name" bind:value={$name} class="w-full p-2 border rounded" />
+		<input id="name" bind:value={name} class="w-full p-2 border rounded" />
+	</div>
+
+	<div>
+		<label for="parent" class="block font-medium">Parent Category</label>
+		<select
+			id="parent"
+			bind:value={parentId}
+			class="w-full p-2 border rounded bg-white dark:bg-gray-800"
+		>
+			<option value="none">-- Top Level (No Parent) --</option>
+			{#each availableParents as parent ((parent.id, parent.pathName))}
+				<option value={parent.id}>{parent.pathName}</option>
+			{/each}
+		</select>
 	</div>
 
 	<div class="flex space-x-4">
@@ -48,7 +108,7 @@
 		{#if showCancel}
 			<button
 				type="button"
-				on:click={cancel}
+				onclick={cancel}
 				class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
 			>
 				Cancel

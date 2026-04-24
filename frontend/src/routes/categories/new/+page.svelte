@@ -1,13 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { auth } from '$lib/stores/auth';
+	import { auth } from '$lib/stores/auth.svelte';
 	import { createCategory } from '$lib/api';
 	import CategoryForm from '$lib/components/CategoryForm.svelte';
 	import type { NewCategory } from '$lib/types';
 
-	onMount(() => {
-		if (!$auth.isLoggedIn) {
+	$effect(() => {
+		if (!auth.isLoggedIn) {
 			goto('/login');
 		}
 	});

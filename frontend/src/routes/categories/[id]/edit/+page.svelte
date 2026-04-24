@@ -1,22 +1,31 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { getCategory, updateCategory } from '$lib/api';
 	import CategoryForm from '$lib/components/CategoryForm.svelte';
 	import type { Category, NewCategory } from '$lib/types';
 
-	let category: Category | null = null;
-	const id = page.params.id;
-	const redirectTo = page.url.searchParams.get('redirectTo') ?? '/categories';
+	let category = $state<Category | null>(null);
 
-	onMount(async () => {
+	let id = $derived(page.params.id);
+	let redirectTo = $derived(page.url.searchParams.get('redirectTo') ?? '/categories');
+
+	$effect(() => {
 		if (id) {
-			category = await getCategory(id);
+			loadData(id);
 		} else {
-			goto(redirectTo);
+			if (redirectTo) goto(redirectTo);
 		}
 	});
+
+	async function loadData(currentId: string) {
+		category = null;
+		try {
+			category = await getCategory(currentId);
+		} catch (e) {
+			console.error('Failed to load category:', e);
+		}
+	}
 
 	async function handleUpdate(data: NewCategory) {
 		if (id) {

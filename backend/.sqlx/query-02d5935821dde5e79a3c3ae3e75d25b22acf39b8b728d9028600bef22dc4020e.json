@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, name, created_at\n        FROM categories\n        WHERE id = $1 AND user_id = $2\n        ",
+  "query": "\n        UPDATE categories SET name = $1 WHERE id = $2 AND user_id = $3\n        RETURNING id, name, created_at\n        ",
   "describe": {
     "columns": [
       {
@@ -21,6 +21,7 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Int4",
         "Uuid"
       ]
@@ -31,5 +32,5 @@
       false
     ]
   },
-  "hash": "a68069b364d832428a72bf55f7d854cfa13531aefd9b566ee0bd40b7a60a9bce"
+  "hash": "02d5935821dde5e79a3c3ae3e75d25b22acf39b8b728d9028600bef22dc4020e"
 }
