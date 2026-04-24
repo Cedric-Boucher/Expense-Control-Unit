@@ -1,182 +1,204 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
-    import { writable, derived } from 'svelte/store';
-    import { onMount, onDestroy } from 'svelte';
-    import type { Transaction, Category } from '$lib/types';
-    import TransactionCard from '$lib/components/TransactionCard.svelte';
+	import { goto } from '$app/navigation';
+	import { writable, derived } from 'svelte/store';
+	import { onMount, onDestroy } from 'svelte';
+	import type { Transaction, Category } from '$lib/types';
+	import TransactionCard from '$lib/components/TransactionCard.svelte';
 
-    export let data: { transactions: Transaction[], categories: Category[] };
+	export let data: { transactions: Transaction[]; categories: Category[] };
 
-    const categoryMap = new Map(data.categories.map(c => [c.id, c]));
+	const categoryMap = new Map(data.categories.map((c) => [c.id, c]));
 
-    const categoriesWithPath = data.categories.map(c => {
-        let path = c.name;
-        let curr = c;
-        while (curr.parent_id && categoryMap.has(curr.parent_id)) {
-            curr = categoryMap.get(curr.parent_id)!;
-            path = curr.name + ' / ' + path;
-        }
-        return { ...c, pathName: path };
-    }).sort((a, b) => a.pathName.localeCompare(b.pathName));
+	const categoriesWithPath = data.categories
+		.map((c) => {
+			let path = c.name;
+			let curr = c;
+			while (curr.parent_id && categoryMap.has(curr.parent_id)) {
+				curr = categoryMap.get(curr.parent_id)!;
+				path = curr.name + ' / ' + path;
+			}
+			return { ...c, pathName: path };
+		})
+		.sort((a, b) => a.pathName.localeCompare(b.pathName));
 
-    const selectedCategoryIds = writable<Set<number>>(new Set(categoriesWithPath.map(c => c.id)));
+	const selectedCategoryIds = writable<Set<number>>(new Set(categoriesWithPath.map((c) => c.id)));
 
-    $: isFilterActive = $selectedCategoryIds.size < categoriesWithPath.length;
+	$: isFilterActive = $selectedCategoryIds.size < categoriesWithPath.length;
 
-    const filteredTransactions = derived(selectedCategoryIds, $selected =>
-        data.transactions.filter(tx => $selected.has(tx.category.id))
-    );
+	const filteredTransactions = derived(selectedCategoryIds, ($selected) =>
+		data.transactions.filter((tx) => $selected.has(tx.category.id))
+	);
 
-    const BATCH_SIZE = 100;
-    const ESTIMATED_ITEM_HEIGHT = 80; 
+	const BATCH_SIZE = 100;
+	const ESTIMATED_ITEM_HEIGHT = 80;
 
-    let limit = BATCH_SIZE;
+	let limit = BATCH_SIZE;
 
-    $: {
-        $filteredTransactions;
-        limit = BATCH_SIZE;
-        if (typeof window !== 'undefined') window.scrollTo(0, 0);
-    }
+	function loadMore() {
+		if (limit < $filteredTransactions.length) {
+			limit += BATCH_SIZE;
+			setTimeout(loadMore, 0);
+		}
+	}
 
-    $: if (limit < $filteredTransactions.length) {
-        setTimeout(() => {
-            limit += BATCH_SIZE;
-        }, 0);
-    }
+	$: if ($filteredTransactions) {
+		limit = BATCH_SIZE;
+		if (typeof window !== 'undefined') window.scrollTo(0, 0);
+		setTimeout(loadMore, 0);
+	}
 
-    $: visibleTransactions = $filteredTransactions.slice(0, limit);
+	$: visibleTransactions = $filteredTransactions.slice(0, limit);
 
-    $: remainingCount = Math.max(0, $filteredTransactions.length - limit);
-    $: phantomHeight = remainingCount * ESTIMATED_ITEM_HEIGHT;
+	$: remainingCount = Math.max(0, $filteredTransactions.length - limit);
+	$: phantomHeight = remainingCount * ESTIMATED_ITEM_HEIGHT;
 
-    const isFilterOpen = writable(false);
-    let filterContainer: HTMLDivElement;
-    const searchQuery = writable('');
+	const isFilterOpen = writable(false);
+	let filterContainer: HTMLDivElement;
+	const searchQuery = writable('');
 
-    const visibleCategories = derived(searchQuery, $searchQuery =>
-        categoriesWithPath.filter(cat =>
-            cat.pathName.toLowerCase().includes($searchQuery.toLowerCase())
-        )
-    );
+	const visibleCategories = derived(searchQuery, ($searchQuery) =>
+		categoriesWithPath.filter((cat) =>
+			cat.pathName.toLowerCase().includes($searchQuery.toLowerCase())
+		)
+	);
 
-    function toggleCategory(id: number) {
-        selectedCategoryIds.update(set => {
-            const newSet = new Set(set);
-            newSet.has(id) ? newSet.delete(id) : newSet.add(id);
-            return newSet;
-        });
-    }
+	function toggleCategory(id: number) {
+		selectedCategoryIds.update((set) => {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const newSet = new Set(set);
 
-    function selectAll() {
-        selectedCategoryIds.set(new Set(categoriesWithPath.map(c => c.id)));
-    }
+			if (newSet.has(id)) {
+				newSet.delete(id);
+			} else {
+				newSet.add(id);
+			}
 
-    function clearAll() {
-        selectedCategoryIds.set(new Set());
-    }
+			return newSet;
+		});
+	}
 
-    onMount(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (filterContainer && !filterContainer.contains(event.target as Node)) {
-                isFilterOpen.set(false);
-            }
-        }
-        document.addEventListener('click', handleClickOutside);
-        onDestroy(() => document.removeEventListener('click', handleClickOutside));
-    });
+	function selectAll() {
+		selectedCategoryIds.set(new Set(categoriesWithPath.map((c) => c.id)));
+	}
+
+	function clearAll() {
+		selectedCategoryIds.set(new Set());
+	}
+
+	onMount(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (filterContainer && !filterContainer.contains(event.target as Node)) {
+				isFilterOpen.set(false);
+			}
+		}
+		document.addEventListener('click', handleClickOutside);
+		onDestroy(() => document.removeEventListener('click', handleClickOutside));
+	});
 </script>
 
 <h1 class="text-2xl font-bold mb-4">Transactions</h1>
 
 <div class="mb-6 flex items-center gap-4">
-    <button
-        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        on:click={() => goto('/transactions/new')}
-    >
-        + New Transaction
-    </button>
+	<button
+		class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+		on:click={() => goto('/transactions/new')}
+	>
+		+ New Transaction
+	</button>
 
-    <div class="relative" bind:this={filterContainer}>
-        <button
-            type="button"
-            class="px-4 py-2 rounded flex items-center gap-2 transition-colors
-            {isFilterActive 
-                ? 'bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:hover:bg-amber-800' 
-                : 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600'
-            }"
-            on:click={() => isFilterOpen.update(v => !v)}
-        >
-            <span class="font-medium">
-                {isFilterActive ? 'Filter Categories (Active)' : 'Filter Categories'}
-            </span>
-            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-        </button>
+	<div class="relative" bind:this={filterContainer}>
+		<button
+			type="button"
+			class="px-4 py-2 rounded flex items-center gap-2 transition-colors
+            {isFilterActive
+				? 'bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:hover:bg-amber-800'
+				: 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600'}"
+			on:click={() => isFilterOpen.update((v) => !v)}
+		>
+			<span class="font-medium">
+				{isFilterActive ? 'Filter Categories (Active)' : 'Filter Categories'}
+			</span>
+			<svg
+				class="w-4 h-4"
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M19 9l-7 7-7-7"
+				/>
+			</svg>
+		</button>
 
-        {#if $isFilterOpen}
-            <div class="absolute left-0 mt-2 w-64 bg-gray-100 dark:bg-gray-800 p-4 rounded shadow-lg z-10">
-                <input
-                    type="text"
-                    placeholder="Search categories..."
-                    class="w-full p-2 mb-3 border rounded dark:bg-gray-700 dark:text-white"
-                    bind:value={$searchQuery}
-                />
+		{#if $isFilterOpen}
+			<div
+				class="absolute left-0 mt-2 w-64 bg-gray-100 dark:bg-gray-800 p-4 rounded shadow-lg z-10"
+			>
+				<input
+					type="text"
+					placeholder="Search categories..."
+					class="w-full p-2 mb-3 border rounded dark:bg-gray-700 dark:text-white"
+					bind:value={$searchQuery}
+				/>
 
-                <div class="flex flex-col gap-2 max-h-64 overflow-auto">
-                    {#if $visibleCategories.length > 0}
-                        {#each $visibleCategories as cat}
-                            <label class="flex items-center space-x-2">
-                                <input
-                                    type="checkbox"
-                                    checked={$selectedCategoryIds.has(cat.id)}
-                                    on:change={() => toggleCategory(cat.id)}
-                                />
-                                <span>{cat.pathName}</span>
-                            </label>
-                        {/each}
-                    {:else}
-                        <p class="text-sm text-gray-500 italic">No categories found</p>
-                    {/if}
-                </div>
+				<div class="flex flex-col gap-2 max-h-64 overflow-auto">
+					{#if $visibleCategories.length > 0}
+						{#each $visibleCategories as cat (cat.id)}
+							<label class="flex items-center space-x-2">
+								<input
+									type="checkbox"
+									checked={$selectedCategoryIds.has(cat.id)}
+									on:change={() => toggleCategory(cat.id)}
+								/>
+								<span>{cat.pathName}</span>
+							</label>
+						{/each}
+					{:else}
+						<p class="text-sm text-gray-500 italic">No categories found</p>
+					{/if}
+				</div>
 
-                <div class="flex justify-between mt-3">
-                    <button
-                        type="button"
-                        class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
-                        on:click={selectAll}
-                    >
-                        Select All
-                    </button>
-                    <button
-                        type="button"
-                        class="px-3 py-1 rounded bg-gray-400 text-white hover:bg-gray-500"
-                        on:click={clearAll}
-                    >
-                        Deselect All
-                    </button>
-                </div>
-            </div>
-        {/if}
-    </div>
+				<div class="flex justify-between mt-3">
+					<button
+						type="button"
+						class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
+						on:click={selectAll}
+					>
+						Select All
+					</button>
+					<button
+						type="button"
+						class="px-3 py-1 rounded bg-gray-400 text-white hover:bg-gray-500"
+						on:click={clearAll}
+					>
+						Deselect All
+					</button>
+				</div>
+			</div>
+		{/if}
+	</div>
 </div>
 
 {#if visibleTransactions.length}
-    <ul class="space-y-4">
-        {#each visibleTransactions as tx (tx.id)}
-            <TransactionCard transaction={tx} allCategories={data.categories} showActions={true} />
-        {/each}
+	<ul class="space-y-4">
+		{#each visibleTransactions as tx (tx.id)}
+			<TransactionCard transaction={tx} allCategories={data.categories} showActions={true} />
+		{/each}
 
-        <div style="height: {phantomHeight}px; width: 100%"></div>
-    </ul>
+		<div style="height: {phantomHeight}px; width: 100%"></div>
+	</ul>
 
-    {#if limit < $filteredTransactions.length}
-        <p class="text-center text-xs text-gray-400 mt-2">Loading rest of data...</p>
-    {:else}
-        <p class="text-center text-xs text-gray-400 mt-2 mb-8">
-            Showing all {$filteredTransactions.length} transactions
-        </p>
-    {/if}
+	{#if limit < $filteredTransactions.length}
+		<p class="text-center text-xs text-gray-400 mt-2">Loading rest of data...</p>
+	{:else}
+		<p class="text-center text-xs text-gray-400 mt-2 mb-8">
+			Showing all {$filteredTransactions.length} transactions
+		</p>
+	{/if}
 {:else}
-    <p class="text-gray-500 italic">No transactions match the selected categories.</p>
+	<p class="text-gray-500 italic">No transactions match the selected categories.</p>
 {/if}

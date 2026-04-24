@@ -3,12 +3,12 @@ import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async () => {
-    const { user } = await load_user();
+	const { user } = await load_user();
 
-    if (!user) {
-        throw redirect(302, '/login');
-    }
-    
-    const categories = await getCategories();
-    return { categories };
+	if (!user) {
+		throw redirect(302, '/login');
+	}
+
+	const categories = await getCategories();
+	return { categories };
 };

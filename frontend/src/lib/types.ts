@@ -1,42 +1,42 @@
 export type Transaction = {
-    id: number;
-    category: Category;
-    description: string;
-    amount: number;
-    created_at: string;
+	id: number;
+	category: Category;
+	description: string;
+	amount: number;
+	created_at: string;
 };
 
 export type NewTransaction = {
-    description: string;
-    category_id: number;
-    amount: number;
-    created_at?: string;
+	description: string;
+	category_id: number;
+	amount: number;
+	created_at?: string;
 };
 
 export type NewUser = {
-    username: string;
-    password: string;
+	username: string;
+	password: string;
 };
 
 export type User = {
-    id: string;
-    username: string;
-    password_hash: string;
-    created_at: string;
+	id: string;
+	username: string;
+	password_hash: string;
+	created_at: string;
 };
 
 export type Category = {
-    id: number;
-    name: string;
-    parent_id: number | null;
-    created_at: string;
-}
+	id: number;
+	name: string;
+	parent_id: number | null;
+	created_at: string;
+};
 
 export type NewCategory = {
-    name: string;
-    parent_id?: number | null;
-}
+	name: string;
+	parent_id?: number | null;
+};
 
 export type CategoryNode = Category & {
-    children: CategoryNode[];
+	children: CategoryNode[];
 };
