@@ -76,48 +76,50 @@
 	<p class="mb-2">Are you sure you want to delete the following category?</p>
 	<CategoryCard {category} showActions={false} />
 
-	{#if childCategories.length > 0}
-		<p class="mt-4 text-red-600">
-			This category is a parent to the following child categor{childCategories.length > 1
-				? 'ies'
-				: 'y'}:
-		</p>
-		<ul class="space-y-2 mt-2">
-			{#each childCategories as child (child.id)}
-				<CategoryCard category={child} showActions={true} />
-			{/each}
-		</ul>
-		<p class="mt-4 mb-6 text-sm text-gray-700 dark:text-gray-300">
-			Please edit these child categories to use a different parent before deleting this
-			category.
-		</p>
-	{/if}
+	{#if childCategories.length > 0 || transactions.length > 0}
+		{#if childCategories.length > 0}
+			<p class="mt-4 text-red-600">
+				This category is a parent to the following child categor{childCategories.length > 1
+					? 'ies'
+					: 'y'}:
+			</p>
+			<ul class="space-y-2 mt-2">
+				{#each childCategories as child (child.id)}
+					<CategoryCard category={child} showActions={true} />
+				{/each}
+			</ul>
+			<p class="mt-4 mb-6 text-sm text-gray-700 dark:text-gray-300">
+				Please edit these child categories to use a different parent before deleting this
+				category.
+			</p>
+		{/if}
 
-	{#if transactions.length > 0}
-		<p class="mt-4 text-red-600">
-			This category is currently used by the following transaction{transactions.length > 1
-				? 's'
-				: ''}:
-		</p>
-		<ul class="space-y-2 mt-2">
-			{#each transactions as tx (tx.id)}
-				<TransactionCard transaction={tx} showActions={true} />
-			{/each}
-		</ul>
+		{#if transactions.length > 0}
+			<p class="mt-4 text-red-600">
+				This category is currently used by the following transaction{transactions.length > 1
+					? 's'
+					: ''}:
+			</p>
+			<ul class="space-y-2 mt-2">
+				{#each transactions as tx (tx.id)}
+					<TransactionCard transaction={tx} showActions={true} />
+				{/each}
+			</ul>
 
-		<p class="mt-4 text-sm text-gray-700 dark:text-gray-300">
-			Please update or delete {transactions.length > 1
-				? 'these transactions'
-				: 'this transaction'} before deleting this category.
-		</p>
-		<div class="mt-4">
-			<button
-				onclick={cancel}
-				class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
-			>
-				Cancel
-			</button>
-		</div>
+			<p class="mt-4 text-sm text-gray-700 dark:text-gray-300">
+				Please update or delete {transactions.length > 1
+					? 'these transactions'
+					: 'this transaction'} before deleting this category.
+			</p>
+			<div class="mt-4">
+				<button
+					onclick={cancel}
+					class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
+				>
+					Cancel
+				</button>
+			</div>
+		{/if}
 	{:else}
 		<div class="flex space-x-4 mt-4">
 			<button
