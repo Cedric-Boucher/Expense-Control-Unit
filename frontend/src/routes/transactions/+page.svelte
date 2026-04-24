@@ -24,16 +24,17 @@
 
 	let limit = BATCH_SIZE;
 
-	$: {
-		$filteredTransactions;
-		limit = BATCH_SIZE;
-		if (typeof window !== 'undefined') window.scrollTo(0, 0);
+	function loadMore() {
+		if (limit < $filteredTransactions.length) {
+			limit += BATCH_SIZE;
+			setTimeout(loadMore, 0);
+		}
 	}
 
-	$: if (limit < $filteredTransactions.length) {
-		setTimeout(() => {
-			limit += BATCH_SIZE;
-		}, 0);
+	$: if ($filteredTransactions) {
+		limit = BATCH_SIZE;
+		if (typeof window !== 'undefined') window.scrollTo(0, 0);
+		setTimeout(loadMore, 0);
 	}
 
 	$: visibleTransactions = $filteredTransactions.slice(0, limit);
@@ -51,8 +52,15 @@
 
 	function toggleCategory(id: number) {
 		selectedCategoryIds.update((set) => {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const newSet = new Set(set);
-			newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+
+			if (newSet.has(id)) {
+				newSet.delete(id);
+			} else {
+				newSet.add(id);
+			}
+
 			return newSet;
 		});
 	}
@@ -127,7 +135,7 @@
 
 				<div class="flex flex-col gap-2 max-h-64 overflow-auto">
 					{#if $visibleCategories.length > 0}
-						{#each $visibleCategories as cat}
+						{#each $visibleCategories as cat (cat.id)}
 							<label class="flex items-center space-x-2">
 								<input
 									type="checkbox"
