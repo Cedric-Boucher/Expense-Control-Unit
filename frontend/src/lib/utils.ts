@@ -49,8 +49,11 @@ export async function exportUserDataToFile() {
 		// Strip IDs from transactions to reduce file size and avoid confusion
 		const exportTransactions = transactions.map((tx) => {
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			const { id, ...txData } = tx;
-			return txData;
+			const { id, category, ...txData } = tx;
+			return {
+				...txData,
+				category_name: category.name
+			};
 		});
 
 		const exportData = {

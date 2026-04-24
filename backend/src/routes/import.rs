@@ -145,7 +145,7 @@ pub async fn import_data(
 
     // Insert Transactions
     for tx_item in payload.transactions {
-        let category_id = match category_map.get(&tx_item.category.name) {
+        let category_id = match category_map.get(&tx_item.category_name) {
             Some(id) => *id,
             None => {
                 return StatusCode::BAD_REQUEST;
@@ -309,7 +309,7 @@ mod tests {
         ];
         let result = sort_categories_topologically(input);
         // Because of the overwrite, the total count mapped won't match the input length
-        assert!(result.is_err()); 
+        assert!(result.is_err());
     }
 
     #[test]

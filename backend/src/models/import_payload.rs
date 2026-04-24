@@ -11,7 +11,7 @@ pub struct ImportCategory {
 
 #[derive(Deserialize)]
 pub struct ImportTransaction {
-    pub category: ImportCategory,
+    pub category_name: String,
     pub description: String,
     pub amount: f64,
     pub created_at: DateTime<Utc>,
