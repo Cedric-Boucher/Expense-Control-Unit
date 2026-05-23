@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import type { Category } from '$lib/types';
 	import CategoryCard from '$lib/components/CategoryCard.svelte';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data: { categories: Category[] } } = $props();
 
@@ -38,7 +39,7 @@
 <div class="mb-6">
 	<button
 		class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-		onclick={() => goto('/categories/new')}
+		onclick={() => goto(resolve('/categories/new'))}
 	>
 		+ New Category
 	</button>

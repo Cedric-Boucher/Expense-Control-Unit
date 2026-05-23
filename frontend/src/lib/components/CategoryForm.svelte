@@ -4,6 +4,7 @@
 	import { getCategories } from '$lib/api';
 	import type { Category, NewCategory } from '$lib/types';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { resolve } from '$app/paths';
 
 	let {
 		initial = {},
@@ -77,7 +78,7 @@
 	}
 
 	function cancel() {
-		goto('/categories');
+		goto(resolve('/categories'));
 	}
 </script>
 

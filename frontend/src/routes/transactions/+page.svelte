@@ -4,6 +4,7 @@
 	import type { Transaction, Category } from '$lib/types';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data: { transactions: Transaction[]; categories: Category[] } } = $props();
 
@@ -106,7 +107,7 @@
 <div class="mb-6 flex items-center gap-4">
 	<button
 		class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-		onclick={() => goto('/transactions/new')}
+		onclick={() => goto(resolve('/transactions/new'))}
 	>
 		+ New Transaction
 	</button>

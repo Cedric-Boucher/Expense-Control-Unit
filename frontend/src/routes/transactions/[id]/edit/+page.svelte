@@ -4,17 +4,21 @@
 	import { goto } from '$app/navigation';
 	import TransactionForm from '$lib/components/TransactionForm.svelte';
 	import type { NewTransaction, Transaction } from '$lib/types';
+	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
 
 	let transaction = $state<Transaction | null>(null);
 
 	let id = $derived(page.params.id);
-	let redirectTo = $derived(page.url.searchParams.get('redirectTo') ?? '/transactions');
+	let redirectTo = $derived(
+		(page.url.searchParams.get('redirectTo') ?? '/transactions') as Pathname
+	);
 
 	$effect(() => {
 		if (id) {
 			loadData(id);
 		} else {
-			if (redirectTo) goto(redirectTo);
+			if (redirectTo) goto(resolve(redirectTo));
 		}
 	});
 
@@ -31,11 +35,11 @@
 		if (id) {
 			await updateTransaction(id, data);
 		}
-		goto(redirectTo);
+		goto(resolve(redirectTo));
 	}
 
 	function cancel() {
-		goto(redirectTo);
+		goto(resolve(redirectTo));
 	}
 </script>
 

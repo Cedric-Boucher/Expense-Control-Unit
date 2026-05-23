@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { check_login, login, signup } from '$lib/api';
-	import { auth } from '$lib/stores/auth.svelte';
+	import { resolve } from '$app/paths';
+	import { login, signup } from '$lib/api';
 	import type { NewUser } from '$lib/types';
-	import { onMount } from 'svelte';
 
 	let { mode }: { mode: 'login' | 'signup' } = $props();
 
@@ -15,13 +14,6 @@
 	let isLogin = $derived(mode === 'login');
 	let title = $derived(isLogin ? 'Login' : 'Sign Up');
 	let buttonColor = $derived(isLogin ? 'bg-blue-600' : 'bg-green-600');
-
-	onMount(async () => {
-		await check_login();
-		if (auth.isLoggedIn) {
-			goto('/transactions');
-		}
-	});
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -39,7 +31,7 @@
 			} else {
 				await signup(payload);
 			}
-			goto('/transactions');
+			goto(resolve('/transactions'));
 		} catch (e) {
 			if (isLogin) {
 				error = 'Invalid credentials';

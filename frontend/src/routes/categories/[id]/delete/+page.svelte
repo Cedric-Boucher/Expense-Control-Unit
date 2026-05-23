@@ -5,6 +5,8 @@
 	import type { Category, Transaction } from '$lib/types';
 	import CategoryCard from '$lib/components/CategoryCard.svelte';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
+	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
 
 	let category = $state<Category | null>(null);
 	let transactions = $state<Transaction[]>([]);
@@ -14,13 +16,15 @@
 
 	let id = $derived(page.params.id);
 	let numericId = $derived(Number(id));
-	let redirectTo = $derived(page.url.searchParams.get('redirectTo') ?? '/categories');
+	let redirectTo = $derived(
+		(page.url.searchParams.get('redirectTo') ?? '/categories') as Pathname
+	);
 
 	$effect(() => {
 		if (id) {
 			loadData(id, numericId);
 		} else {
-			if (redirectTo) goto(redirectTo);
+			if (redirectTo) goto(resolve(redirectTo));
 		}
 	});
 
@@ -54,7 +58,7 @@
 			if (id) {
 				await deleteCategory(id);
 			}
-			goto(redirectTo);
+			goto(resolve(redirectTo));
 		} catch (e) {
 			error = 'Failed to delete category.';
 			console.error(e);
@@ -62,7 +66,7 @@
 	}
 
 	function cancel() {
-		goto(redirectTo);
+		goto(resolve(redirectTo));
 	}
 </script>
 

@@ -4,17 +4,21 @@
 	import { getCategory, updateCategory } from '$lib/api';
 	import CategoryForm from '$lib/components/CategoryForm.svelte';
 	import type { Category, NewCategory } from '$lib/types';
+	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
 
 	let category = $state<Category | null>(null);
 
 	let id = $derived(page.params.id);
-	let redirectTo = $derived(page.url.searchParams.get('redirectTo') ?? '/categories');
+	let redirectTo = $derived(
+		(page.url.searchParams.get('redirectTo') ?? '/categories') as Pathname
+	);
 
 	$effect(() => {
 		if (id) {
 			loadData(id);
 		} else {
-			if (redirectTo) goto(redirectTo);
+			if (redirectTo) goto(resolve(redirectTo));
 		}
 	});
 
@@ -31,7 +35,7 @@
 		if (id) {
 			await updateCategory(id, data);
 		}
-		goto(redirectTo);
+		goto(resolve(redirectTo));
 	}
 </script>
 
