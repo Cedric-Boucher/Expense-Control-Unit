@@ -5,13 +5,14 @@
 	import type { Transaction } from '$lib/types';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
 	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
 
 	let transaction = $state<Transaction | null>(null);
 	let error = $state('');
 	let loading = $state(true);
 
 	let id = $derived(page.params.id);
-	let redirectTo = $derived(page.url.searchParams.get('redirectTo') ?? '/transactions');
+	let redirectTo = $derived((page.url.searchParams.get('redirectTo') ?? '/transactions') as Pathname);
 
 	$effect(() => {
 		if (id) {

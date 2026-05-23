@@ -6,6 +6,7 @@
 	import CategoryCard from '$lib/components/CategoryCard.svelte';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
 	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
 
 	let category = $state<Category | null>(null);
 	let transactions = $state<Transaction[]>([]);
@@ -15,7 +16,7 @@
 
 	let id = $derived(page.params.id);
 	let numericId = $derived(Number(id));
-	let redirectTo = $derived(page.url.searchParams.get('redirectTo') ?? '/categories');
+	let redirectTo = $derived((page.url.searchParams.get('redirectTo') ?? '/categories') as Pathname);
 
 	$effect(() => {
 		if (id) {
