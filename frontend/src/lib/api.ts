@@ -1,4 +1,5 @@
 import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
 import { auth } from './stores/auth.svelte';
 import type { Transaction, NewTransaction, NewUser, User, Category, NewCategory } from './types';
 
@@ -68,7 +69,7 @@ export async function logout(): Promise<void> {
 		credentials: 'include'
 	});
 	auth.isLoggedIn = false;
-	goto('/login');
+	goto(resolve('/login'));
 }
 
 export async function check_login(): Promise<void> {

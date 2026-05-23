@@ -3,6 +3,7 @@
 	import { formatTimestampLocalForDisplay } from '$lib/utils';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 
 	let {
 		category,
@@ -41,7 +42,9 @@
 		if (onEdit) onEdit();
 		else
 			goto(
-				`/categories/${category.id}/edit?redirectTo=${encodeURIComponent(page.url.pathname)}`
+				resolve(
+					`/categories/${category.id}/edit?redirectTo=${encodeURIComponent(page.url.pathname)}`
+				)
 			);
 	}
 
@@ -49,7 +52,9 @@
 		if (onDelete) onDelete();
 		else
 			goto(
-				`/categories/${category.id}/delete?redirectTo=${encodeURIComponent(page.url.pathname)}`
+				resolve(
+					`/categories/${category.id}/delete?redirectTo=${encodeURIComponent(page.url.pathname)}`
+				)
 			);
 	}
 </script>

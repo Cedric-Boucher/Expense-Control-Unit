@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import TransactionForm from '$lib/components/TransactionForm.svelte';
 	import type { NewTransaction, Transaction } from '$lib/types';
+	import { resolve } from '$app/paths';
 
 	let transaction = $state<Transaction | null>(null);
 
@@ -14,7 +15,7 @@
 		if (id) {
 			loadData(id);
 		} else {
-			if (redirectTo) goto(redirectTo);
+			if (redirectTo) goto(resolve(redirectTo));
 		}
 	});
 
@@ -31,11 +32,11 @@
 		if (id) {
 			await updateTransaction(id, data);
 		}
-		goto(redirectTo);
+		goto(resolve(redirectTo));
 	}
 
 	function cancel() {
-		goto(redirectTo);
+		goto(resolve(redirectTo));
 	}
 </script>
 

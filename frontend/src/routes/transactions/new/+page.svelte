@@ -3,14 +3,15 @@
 	import { createTransaction } from '$lib/api';
 	import { goto } from '$app/navigation';
 	import type { NewTransaction } from '$lib/types';
+	import { resolve } from '$app/paths';
 
 	async function handleCreate(payload: NewTransaction) {
 		await createTransaction(payload);
-		goto('/transactions');
+		goto(resolve('/transactions'));
 	}
 
 	function cancel() {
-		goto('/transactions');
+		goto(resolve('/transactions'));
 	}
 </script>
 

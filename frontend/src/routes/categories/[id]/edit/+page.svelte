@@ -4,6 +4,7 @@
 	import { getCategory, updateCategory } from '$lib/api';
 	import CategoryForm from '$lib/components/CategoryForm.svelte';
 	import type { Category, NewCategory } from '$lib/types';
+	import { resolve } from '$app/paths';
 
 	let category = $state<Category | null>(null);
 
@@ -14,7 +15,7 @@
 		if (id) {
 			loadData(id);
 		} else {
-			if (redirectTo) goto(redirectTo);
+			if (redirectTo) goto(resolve(redirectTo));
 		}
 	});
 
@@ -31,7 +32,7 @@
 		if (id) {
 			await updateCategory(id, data);
 		}
-		goto(redirectTo);
+		goto(resolve(redirectTo));
 	}
 </script>
 

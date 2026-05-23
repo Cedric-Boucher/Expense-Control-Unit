@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { login, signup } from '$lib/api';
 	import type { NewUser } from '$lib/types';
 
@@ -30,7 +31,7 @@
 			} else {
 				await signup(payload);
 			}
-			goto('/transactions');
+			goto(resolve('/transactions'));
 		} catch (e) {
 			if (isLogin) {
 				error = 'Invalid credentials';

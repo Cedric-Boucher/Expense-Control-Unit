@@ -5,6 +5,7 @@
 	import type { Category, Transaction } from '$lib/types';
 	import CategoryCard from '$lib/components/CategoryCard.svelte';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
+	import { resolve } from '$app/paths';
 
 	let category = $state<Category | null>(null);
 	let transactions = $state<Transaction[]>([]);
@@ -20,7 +21,7 @@
 		if (id) {
 			loadData(id, numericId);
 		} else {
-			if (redirectTo) goto(redirectTo);
+			if (redirectTo) goto(resolve(redirectTo));
 		}
 	});
 
@@ -54,7 +55,7 @@
 			if (id) {
 				await deleteCategory(id);
 			}
-			goto(redirectTo);
+			goto(resolve(redirectTo));
 		} catch (e) {
 			error = 'Failed to delete category.';
 			console.error(e);
@@ -62,7 +63,7 @@
 	}
 
 	function cancel() {
-		goto(redirectTo);
+		goto(resolve(redirectTo));
 	}
 </script>
 

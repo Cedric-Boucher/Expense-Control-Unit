@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import type { Transaction } from '$lib/types';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
+	import { resolve } from '$app/paths';
 
 	let transaction = $state<Transaction | null>(null);
 	let error = $state('');
@@ -16,7 +17,7 @@
 		if (id) {
 			loadData(id);
 		} else {
-			if (redirectTo) goto(redirectTo);
+			if (redirectTo) goto(resolve(redirectTo));
 		}
 	});
 
@@ -39,7 +40,7 @@
 			if (id) {
 				await deleteTransaction(id);
 			}
-			goto(redirectTo);
+			goto(resolve(redirectTo));
 		} catch (e) {
 			error = 'Failed to delete transaction.';
 			console.error(e);
@@ -47,7 +48,7 @@
 	}
 
 	function cancel() {
-		goto(redirectTo);
+		goto(resolve(redirectTo));
 	}
 </script>
 
