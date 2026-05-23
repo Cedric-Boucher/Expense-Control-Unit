@@ -10,7 +10,9 @@
 	let transaction = $state<Transaction | null>(null);
 
 	let id = $derived(page.params.id);
-	let redirectTo = $derived((page.url.searchParams.get('redirectTo') ?? '/transactions') as Pathname);
+	let redirectTo = $derived(
+		(page.url.searchParams.get('redirectTo') ?? '/transactions') as Pathname
+	);
 
 	$effect(() => {
 		if (id) {

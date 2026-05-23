@@ -16,7 +16,9 @@
 
 	let id = $derived(page.params.id);
 	let numericId = $derived(Number(id));
-	let redirectTo = $derived((page.url.searchParams.get('redirectTo') ?? '/categories') as Pathname);
+	let redirectTo = $derived(
+		(page.url.searchParams.get('redirectTo') ?? '/categories') as Pathname
+	);
 
 	$effect(() => {
 		if (id) {
