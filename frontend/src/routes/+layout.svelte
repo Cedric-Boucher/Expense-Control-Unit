@@ -68,6 +68,12 @@
 				>
 					Categories
 				</button>
+				<button
+					onclick={() => goto(resolve('/summary'))}
+					class={navButtonClasses('/summary')}
+				>
+					Summary
+				</button>
 			</div>
 		{/if}
 
