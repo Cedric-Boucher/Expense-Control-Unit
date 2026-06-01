@@ -16,7 +16,7 @@ async fn list_categories(
 ) -> impl IntoResponse {
     let futures = sqlx::query!(
         r#"
-        SELECT c.id, c.name, c.created_at, ch.parent_id as "parent_id?"
+        SELECT c.id, c.name, c.is_asset, c.created_at, ch.parent_id as "parent_id?"
         FROM categories c
         LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
         WHERE c.user_id = $1
@@ -32,6 +32,7 @@ async fn list_categories(
         id: row.id,
         name: row.name,
         parent_id: row.parent_id,
+        is_asset: row.is_asset,
         created_at: convert_time_to_chrono(row.created_at)
     });
 
@@ -49,12 +50,13 @@ pub async fn create_category(
 
     let record = sqlx::query!(
         r#"
-        INSERT INTO categories (user_id, name)
-        VALUES ($1, $2)
-        RETURNING id, name, created_at
+        INSERT INTO categories (user_id, name, is_asset)
+        VALUES ($1, $2, $3)
+        RETURNING id, name, is_asset, created_at
         "#,
         user.id,
         payload.name,
+        payload.is_asset,
     )
     .fetch_one(&mut *tx)
     .await
@@ -81,6 +83,7 @@ pub async fn create_category(
         id: record.id,
         name: record.name,
         parent_id: payload.parent_id,
+        is_asset: record.is_asset,
         created_at: convert_time_to_chrono(record.created_at)
     };
 
@@ -94,7 +97,7 @@ async fn get_category(
 ) -> impl IntoResponse {
     let existing = sqlx::query!(
         r#"
-        SELECT c.id, c.name, c.created_at, ch.parent_id as "parent_id?"
+        SELECT c.id, c.name, c.is_asset, c.created_at, ch.parent_id as "parent_id?"
         FROM categories c
         LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
         WHERE c.id = $1 AND c.user_id = $2
@@ -115,7 +118,8 @@ async fn get_category(
     let category = Category {
         id: row.id,
         name: row.name,
-        parent_id: row.parent_id, 
+        parent_id: row.parent_id,
+        is_asset: row.is_asset,
         created_at: convert_time_to_chrono(row.created_at),
     };
 
@@ -162,10 +166,11 @@ async fn update_category(
 
     let row = sqlx::query!(
         r#"
-        UPDATE categories SET name = $1 WHERE id = $2 AND user_id = $3
-        RETURNING id, name, created_at
+        UPDATE categories SET name = $1, is_asset = $2 WHERE id = $3 AND user_id = $4
+        RETURNING id, name, is_asset, created_at
         "#,
         payload.name,
+        payload.is_asset,
         id,
         user.id
     )
@@ -212,6 +217,7 @@ async fn update_category(
         id: row.id,
         name: row.name,
         parent_id: payload.parent_id,
+        is_asset: row.is_asset,
         created_at: convert_time_to_chrono(row.created_at),
     };
 
@@ -278,7 +284,7 @@ async fn get_transactions(
         )
         SELECT
             t.id AS transaction_id, t.description, t.amount, t.created_at AS transaction_created_at,
-            c.id AS category_id, c.name, c.created_at AS category_created_at,
+            c.id AS category_id, c.name, c.is_asset AS category_is_asset, c.created_at AS category_created_at,
             ch.parent_id as "parent_id?"
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
@@ -300,6 +306,7 @@ async fn get_transactions(
             id: row.category_id,
             name: row.name,
             parent_id: row.parent_id, 
+            is_asset: row.category_is_asset,
             created_at: convert_time_to_chrono(row.category_created_at),
         },
         description: row.description,

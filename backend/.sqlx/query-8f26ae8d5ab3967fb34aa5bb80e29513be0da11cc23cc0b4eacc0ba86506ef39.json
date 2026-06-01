@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT c.id, c.name, c.created_at, ch.parent_id as \"parent_id?\"\n        FROM categories c\n        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id\n        WHERE c.user_id = $1\n        ORDER BY c.name ASC\n        ",
+  "query": "\n        SELECT c.id, c.name, c.is_asset, c.created_at, ch.parent_id as \"parent_id?\"\n        FROM categories c\n        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id\n        WHERE c.user_id = $1\n        AND c.id = $2\n        ORDER BY c.id DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -15,26 +15,33 @@
       },
       {
         "ordinal": 2,
+        "name": "is_asset",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "parent_id?",
         "type_info": "Int4"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Int4"
       ]
     },
     "nullable": [
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "1b4aeabaf058070abb3999a3d3cdd0873ff9f8989bf5b57374799fd8e26f0e8a"
+  "hash": "8f26ae8d5ab3967fb34aa5bb80e29513be0da11cc23cc0b4eacc0ba86506ef39"
 }

@@ -96,14 +96,16 @@ pub async fn import_data(
     for cat in sorted_categories {
         let rec = sqlx::query!(
             r#"
-            INSERT INTO categories (user_id, name, created_at)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (user_id, name) DO UPDATE SET name = EXCLUDED.name
+            INSERT INTO categories (user_id, name, created_at, is_asset)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id, name) 
+            DO UPDATE SET name = EXCLUDED.name, is_asset = EXCLUDED.is_asset
             RETURNING id
             "#,
             user.id,
             cat.name,
             convert_chrono_to_time(cat.created_at),
+            cat.is_asset,
         )
         .fetch_one(&mut *tx)
         .await
@@ -192,6 +194,7 @@ mod tests {
             name: name.to_string(),
             created_at: Utc::now(),
             parent_name: parent.map(|s| s.to_string()),
+            is_asset: false,
         }
     }
 
