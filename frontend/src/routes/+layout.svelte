@@ -125,7 +125,9 @@
 						</button>
 					</div>
 				{:else}
-					<span class="font-bold text-gray-800 dark:text-gray-200">Expense Control Unit</span>
+					<span class="font-bold text-gray-800 dark:text-gray-200"
+						>Expense Control Unit</span
+					>
 				{/if}
 			</div>
 
