@@ -61,13 +61,22 @@
 
 <li class="bg-white dark:bg-gray-800 shadow rounded p-4 flex justify-between items-start gap-4">
 	<div>
-		<div class="text-2xl font-bold">
-			{#if path.parentPath}
-				<span class="text-gray-400 font-normal text-lg">{path.parentPath}</span>
+		<div class="text-2xl font-bold flex items-center gap-3">
+			<div>
+				{#if path.parentPath}
+					<span class="text-gray-400 font-normal text-lg">{path.parentPath}</span>
+				{/if}
+				{path.name}
+			</div>
+			{#if category.is_asset}
+				<span
+					class="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 px-2 py-1 rounded-full font-semibold uppercase tracking-wide"
+				>
+					Asset
+				</span>
 			{/if}
-			{path.name}
 		</div>
-		<div class="text-gray-500 text-sm">
+		<div class="text-gray-500 text-sm mt-1">
 			Created: {formatTimestampLocalForDisplay(category.created_at)}
 		</div>
 	</div>

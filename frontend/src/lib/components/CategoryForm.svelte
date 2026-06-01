@@ -20,6 +20,7 @@
 
 	let name = $state(untrack(() => initial.name ?? ''));
 	let parentId = $state<number | string>(untrack(() => initial.parent_id ?? 'none'));
+	let isAsset = $state(untrack(() => initial.is_asset ?? false));
 	let error = $state('');
 
 	let availableParents = $state<{ id: number; pathName: string }[]>([]);
@@ -66,7 +67,8 @@
 
 		const payload: NewCategory = {
 			name: trimmedName,
-			parent_id: parentId === 'none' ? null : Number(parentId)
+			parent_id: parentId === 'none' ? null : Number(parentId),
+			is_asset: isAsset
 		};
 
 		try {
@@ -102,7 +104,14 @@
 		</select>
 	</div>
 
-	<div class="flex space-x-4">
+	<div class="flex items-center gap-2 mt-2">
+		<input type="checkbox" id="isAsset" bind:checked={isAsset} class="w-4 h-4 rounded" />
+		<label for="isAsset" class="font-medium text-gray-700 dark:text-gray-300">
+			Track as an Asset Category
+		</label>
+	</div>
+
+	<div class="flex space-x-4 pt-2">
 		<button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
 			{submitLabel}
 		</button>

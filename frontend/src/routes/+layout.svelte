@@ -74,6 +74,12 @@
 				>
 					Summary
 				</button>
+				<button
+					onclick={() => goto(resolve('/assets'))}
+					class={navButtonClasses('/assets')}
+				>
+					Assets
+				</button>
 			</div>
 		{/if}
 

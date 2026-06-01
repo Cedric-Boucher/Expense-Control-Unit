@@ -62,13 +62,22 @@
 
 <li class="bg-white dark:bg-gray-800 shadow rounded p-4 flex justify-between items-start gap-4">
 	<div>
-		<div class="text-2xl font-bold">
-			{#if path.parentPath}
-				<span class="text-gray-400 font-normal text-lg">{path.parentPath}</span>
+		<div class="text-2xl font-bold flex items-center gap-3">
+			<div>
+				{#if path.parentPath}
+					<span class="text-gray-400 font-normal text-lg">{path.parentPath}</span>
+				{/if}
+				{path.name}
+			</div>
+			{#if transaction.category.is_asset}
+				<span
+					class="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 px-2 py-1 rounded-full font-semibold uppercase tracking-wide"
+				>
+					Asset
+				</span>
 			{/if}
-			{path.name}
 		</div>
-		<div class="font-medium">{transaction.description}</div>
+		<div class="font-medium mt-1">{transaction.description}</div>
 		<div
 			class={transaction.amount > 0
 				? 'text-green-600 font-bold text-xl'
@@ -76,7 +85,7 @@
 		>
 			${transaction.amount.toFixed(2)}
 		</div>
-		<div class="text-gray-500 text-sm">
+		<div class="text-gray-500 text-sm mt-1">
 			{formatTimestampLocalForDisplay(transaction.created_at)}
 		</div>
 	</div>

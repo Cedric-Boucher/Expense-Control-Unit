@@ -29,12 +29,14 @@ export type Category = {
 	id: number;
 	name: string;
 	parent_id: number | null;
+	is_asset: boolean;
 	created_at: string;
 };
 
 export type NewCategory = {
 	name: string;
 	parent_id?: number | null;
+	is_asset?: boolean;
 };
 
 export type CategoryNode = Category & {
