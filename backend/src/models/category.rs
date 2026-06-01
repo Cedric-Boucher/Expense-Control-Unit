@@ -6,6 +6,7 @@ pub struct Category {
     pub id: i32,
     pub name: String,
     pub parent_id: Option<i32>,
+    pub is_asset: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -13,4 +14,6 @@ pub struct Category {
 pub struct NewCategory {
     pub name: String,
     pub parent_id: Option<i32>,
+    #[serde(default)]
+    pub is_asset: bool,
 }

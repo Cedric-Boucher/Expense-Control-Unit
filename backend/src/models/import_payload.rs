@@ -7,6 +7,8 @@ pub struct ImportCategory {
     pub created_at: DateTime<Utc>,
     #[serde(default)]
     pub parent_name: Option<String>,
+    #[serde(default)]
+    pub is_asset: bool,
 }
 
 #[derive(Deserialize)]

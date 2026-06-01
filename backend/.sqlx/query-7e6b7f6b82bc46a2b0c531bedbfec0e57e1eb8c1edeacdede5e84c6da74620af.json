@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO categories (user_id, name, created_at, is_asset)\n            VALUES ($1, $2, $3, $4)\n            ON CONFLICT (user_id, name) \n            DO UPDATE SET name = EXCLUDED.name, is_asset = EXCLUDED.is_asset\n            RETURNING id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Timestamptz",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7e6b7f6b82bc46a2b0c531bedbfec0e57e1eb8c1edeacdede5e84c6da74620af"
+}

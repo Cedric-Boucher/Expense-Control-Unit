@@ -19,6 +19,7 @@ async fn list_transactions(
             categories.id as category_id,
             transactions.description as transaction_description,
             categories.name as category_name,
+            categories.is_asset as category_is_asset,
             amount,
             transactions.created_at as transaction_created_at,
             categories.created_at as category_created_at,
@@ -40,7 +41,8 @@ async fn list_transactions(
         category: Category {
             id: row.category_id,
             name: row.category_name,
-            parent_id: row.parent_id, 
+            parent_id: row.parent_id,
+            is_asset: row.category_is_asset,
             created_at: convert_time_to_chrono(row.category_created_at)
         },
         description: row.transaction_description,
@@ -91,7 +93,7 @@ async fn fetch_category(
 ) -> Category {
     let record = sqlx::query!(
         r#"
-        SELECT c.id, c.name, c.created_at, ch.parent_id as "parent_id?"
+        SELECT c.id, c.name, c.is_asset, c.created_at, ch.parent_id as "parent_id?"
         FROM categories c
         LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
         WHERE c.user_id = $1
@@ -109,6 +111,7 @@ async fn fetch_category(
         id: record.id,
         name: record.name,
         parent_id: record.parent_id, 
+        is_asset: record.is_asset,
         created_at: convert_time_to_chrono(record.created_at),
     }
 }
