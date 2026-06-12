@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT c.id, c.name, c.is_asset, c.created_at, ch.parent_id as \"parent_id?\"\n        FROM categories c\n        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id\n        WHERE c.id = $1 AND c.user_id = $2\n        ",
+  "query": "\n        INSERT INTO categories (user_id, name, is_asset, parent_id)\n        VALUES ($1, $2, $3, $4)\n        RETURNING id, name, is_asset, parent_id, created_at\n        ",
   "describe": {
     "columns": [
       {
@@ -20,28 +20,30 @@
       },
       {
         "ordinal": 3,
-        "name": "created_at",
-        "type_info": "Timestamptz"
+        "name": "parent_id",
+        "type_info": "Int4"
       },
       {
         "ordinal": 4,
-        "name": "parent_id?",
-        "type_info": "Int4"
+        "name": "created_at",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Int4",
-        "Uuid"
+        "Uuid",
+        "Text",
+        "Bool",
+        "Int4"
       ]
     },
     "nullable": [
       false,
       false,
       false,
-      false,
+      true,
       false
     ]
   },
-  "hash": "4a360129db13ec80a8595aa3328924a307b6fed4fabf25a747bd5473eb17f918"
+  "hash": "7106ffa05792786a53a823f6357b6c13a7c61af09a41c5d655cfaa24780c2fdd"
 }

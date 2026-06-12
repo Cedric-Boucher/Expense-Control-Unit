@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT c.id, c.name, c.is_asset, c.created_at, ch.parent_id as \"parent_id?\"\n        FROM categories c\n        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id\n        WHERE c.user_id = $1\n        ORDER BY c.name ASC\n        ",
+  "query": "\n        SELECT id, name, is_asset, parent_id, created_at\n        FROM categories\n        WHERE user_id = $1\n        ORDER BY name ASC\n        ",
   "describe": {
     "columns": [
       {
@@ -20,13 +20,13 @@
       },
       {
         "ordinal": 3,
-        "name": "created_at",
-        "type_info": "Timestamptz"
+        "name": "parent_id",
+        "type_info": "Int4"
       },
       {
         "ordinal": 4,
-        "name": "parent_id?",
-        "type_info": "Int4"
+        "name": "created_at",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
@@ -38,9 +38,9 @@
       false,
       false,
       false,
-      false,
+      true,
       false
     ]
   },
-  "hash": "95545707950ae20a19af5339ad50a224ae66f3d075fec52b749a86f46eb4268e"
+  "hash": "b15bd914eabac15691dfb6c2bcad89253a71fbb2782dca8c03fd8894be32f446"
 }

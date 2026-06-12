@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            transactions.id as transaction_id,\n            categories.id as category_id,\n            transactions.description as transaction_description,\n            categories.name as category_name,\n            categories.is_asset as category_is_asset,\n            amount,\n            transactions.created_at as transaction_created_at,\n            categories.created_at as category_created_at,\n            ch.parent_id as \"parent_id?\"\n        FROM transactions\n        JOIN categories ON transactions.category_id = categories.id\n        LEFT JOIN category_hierarchy ch ON categories.id = ch.category_id\n        WHERE transactions.user_id = $1\n        ORDER BY transactions.created_at DESC\n        ",
+  "query": "\n        SELECT\n            transactions.id as transaction_id,\n            categories.id as category_id,\n            transactions.description as transaction_description,\n            categories.name as category_name,\n            categories.is_asset as category_is_asset,\n            amount,\n            transactions.created_at as transaction_created_at,\n            categories.created_at as category_created_at,\n            categories.parent_id\n        FROM transactions\n        JOIN categories ON transactions.category_id = categories.id\n        WHERE transactions.user_id = $1\n        ORDER BY transactions.created_at DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -45,7 +45,7 @@
       },
       {
         "ordinal": 8,
-        "name": "parent_id?",
+        "name": "parent_id",
         "type_info": "Int4"
       }
     ],
@@ -63,8 +63,8 @@
       false,
       false,
       false,
-      false
+      true
     ]
   },
-  "hash": "6601e5ccb1dc93d25e9006982d8eb5761b6ab2e8d880e7f451a420301148b702"
+  "hash": "5e71b08dc40ff7f81e0a10e42b515b855bd3bee5f736373d8bab676595f74fd7"
 }

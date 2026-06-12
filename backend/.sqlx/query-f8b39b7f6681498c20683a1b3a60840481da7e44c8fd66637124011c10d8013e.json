@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT 1 AS exists \n        FROM category_hierarchy \n        WHERE parent_id = $1\n        LIMIT 1\n        ",
+  "query": "\n        SELECT 1 AS exists \n        FROM categories \n        WHERE parent_id = $1\n        LIMIT 1\n        ",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       null
     ]
   },
-  "hash": "49dc29d8c33d869fd89efe40f182fbddef086a5c16090ac513ece740496f7608"
+  "hash": "f8b39b7f6681498c20683a1b3a60840481da7e44c8fd66637124011c10d8013e"
 }

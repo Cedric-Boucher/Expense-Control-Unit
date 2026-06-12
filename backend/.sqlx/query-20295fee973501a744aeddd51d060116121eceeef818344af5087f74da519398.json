@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO categories (user_id, name, is_asset)\n        VALUES ($1, $2, $3)\n        RETURNING id, name, is_asset, created_at\n        ",
+  "query": "\n        UPDATE categories \n        SET name = $1, is_asset = $2, parent_id = $3 \n        WHERE id = $4 AND user_id = $5\n        RETURNING id, name, is_asset, parent_id, created_at\n        ",
   "describe": {
     "columns": [
       {
@@ -20,23 +20,31 @@
       },
       {
         "ordinal": 3,
+        "name": "parent_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
         "name": "created_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
         "Text",
-        "Bool"
+        "Bool",
+        "Int4",
+        "Int4",
+        "Uuid"
       ]
     },
     "nullable": [
       false,
       false,
       false,
+      true,
       false
     ]
   },
-  "hash": "2e2bdc54501d651c370422cef6d35555bdd804a6aea8f9179318d648fb0720e5"
+  "hash": "20295fee973501a744aeddd51d060116121eceeef818344af5087f74da519398"
 }
