@@ -42,3 +42,21 @@ export type NewCategory = {
 export type CategoryNode = Category & {
 	children: CategoryNode[];
 };
+
+export type ImportCategory = {
+	path: string[];
+	created_at: string;
+	is_asset: boolean;
+};
+
+export type ImportTransaction = {
+	category_path: string[];
+	amount: number;
+	description: string;
+	created_at: string;
+};
+
+export type ImportPayload = {
+	categories: ImportCategory[];
+	transactions: ImportTransaction[];
+};

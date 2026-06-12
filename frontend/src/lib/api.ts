@@ -1,7 +1,15 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { auth } from './stores/auth.svelte';
-import type { Transaction, NewTransaction, NewUser, User, Category, NewCategory } from './types';
+import type {
+	Transaction,
+	NewTransaction,
+	NewUser,
+	User,
+	Category,
+	NewCategory,
+	ImportPayload
+} from './types';
 
 const API_BASE = '/api';
 
@@ -168,15 +176,13 @@ export async function getCategoryTransactions(category_id: string): Promise<Tran
 	return await res.json();
 }
 
-export async function uploadUserData(payload: string) {
-	const data = JSON.parse(payload);
-
+export async function uploadUserData(payload: ImportPayload) {
 	const res = await fetch(`${API_BASE}/import`, {
 		method: 'POST',
 		headers: {
 			'content-type': 'application/json'
 		},
-		body: JSON.stringify(data),
+		body: JSON.stringify(payload),
 		credentials: 'include'
 	});
 
