@@ -44,7 +44,27 @@ pub async fn create_category(
     Extension(pool): Extension<PgPool>,
     AuthSession(user): AuthSession,
     Json(payload): Json<NewCategory>,
-) -> Json<Category> {
+) -> Result<Json<Category>, StatusCode> {
+    let duplicate_check = sqlx::query!(
+        r#"
+        SELECT id FROM categories 
+        WHERE user_id = $1 
+          AND LOWER(name) = LOWER($2) 
+          AND (parent_id IS NOT DISTINCT FROM $3)
+        LIMIT 1
+        "#,
+        user.id,
+        payload.name,
+        payload.parent_id as Option<i32>
+    )
+    .fetch_optional(&pool)
+    .await
+    .expect("Failed to check for duplicate category");
+
+    if duplicate_check.is_some() {
+        return Err(StatusCode::CONFLICT);
+    }
+
     let record = sqlx::query!(
         r#"
         INSERT INTO categories (user_id, name, is_asset, parent_id)
@@ -68,7 +88,7 @@ pub async fn create_category(
         created_at: convert_time_to_chrono(record.created_at)
     };
 
-    Json(result)
+    Ok(Json(result))
 }
 
 async fn get_category(
@@ -114,7 +134,30 @@ async fn update_category(
 ) -> impl IntoResponse {
     let mut tx = pool.begin().await.expect("Failed to begin transaction");
 
-    // Check for circular dependencies BEFORE we update anything
+    // 1. Check for duplicates (ignoring this exact category's ID)
+    let duplicate_check = sqlx::query!(
+        r#"
+        SELECT id FROM categories 
+        WHERE user_id = $1 
+          AND LOWER(name) = LOWER($2) 
+          AND (parent_id IS NOT DISTINCT FROM $3)
+          AND id != $4
+        LIMIT 1
+        "#,
+        user.id,
+        payload.name,
+        payload.parent_id as Option<i32>,
+        id
+    )
+    .fetch_optional(&mut *tx)
+    .await
+    .expect("Failed to check for duplicate category");
+
+    if duplicate_check.is_some() {
+        return Err(StatusCode::CONFLICT);
+    }
+
+    // 2. Check for circular dependencies BEFORE we update anything
     if let Some(pid) = payload.parent_id {
         if pid == id {
             // Cannot parent to itself
@@ -144,6 +187,7 @@ async fn update_category(
         }
     }
 
+    // 3. Proceed with update
     let row = sqlx::query!(
         r#"
         UPDATE categories 
