@@ -1,6 +1,15 @@
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, routing::get, Extension, Json, Router};
 use sqlx::PgPool;
-use crate::{middleware::AuthSession, models::{category::{Category, NewCategory}, transaction::Transaction}, time_conversion::convert_time_to_chrono};
+use std::collections::HashMap;
+use crate::{
+    middleware::AuthSession, 
+    models::{
+        category::{Category, NewCategory}, 
+        tag::Tag, 
+        transaction::Transaction
+    }, 
+    time_conversion::convert_time_to_chrono
+};
 use bigdecimal::ToPrimitive;
 use futures::future::join_all;
 
@@ -271,6 +280,37 @@ async fn get_transactions(
     Extension(pool): Extension<PgPool>,
     AuthSession(user): AuthSession
 ) -> impl IntoResponse {
+    let tags_records = sqlx::query!(
+        r#"
+        WITH RECURSIVE category_tree AS (
+            SELECT id FROM categories WHERE id = $1 AND user_id = $2
+            UNION ALL
+            SELECT c.id FROM categories c
+            INNER JOIN category_tree ct ON c.parent_id = ct.id
+        )
+        SELECT tt.transaction_id, t.id, t.name, t.created_at
+        FROM tags t
+        JOIN transaction_tags tt ON t.id = tt.tag_id
+        JOIN transactions txn ON tt.transaction_id = txn.id
+        WHERE txn.category_id IN (SELECT id FROM category_tree)
+        AND t.user_id = $2
+        "#,
+        id,
+        user.id
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap_or_default();
+
+    let mut tags_by_transaction: HashMap<i32, Vec<Tag>> = HashMap::new();
+    for row in tags_records {
+        tags_by_transaction.entry(row.transaction_id).or_default().push(Tag {
+            id: row.id,
+            name: row.name,
+            created_at: convert_time_to_chrono(row.created_at),
+        });
+    }
+
     let rows: Vec<Transaction> = sqlx::query!(
         r#"
         WITH RECURSIVE category_tree AS (
@@ -307,6 +347,7 @@ async fn get_transactions(
             is_asset: row.category_is_asset,
             created_at: convert_time_to_chrono(row.category_created_at),
         },
+        tags: tags_by_transaction.remove(&row.transaction_id).unwrap_or_default(),
         description: row.description,
         amount: row.amount.to_f64().unwrap_or(0.0),
         created_at: convert_time_to_chrono(row.transaction_created_at)

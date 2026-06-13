@@ -15,7 +15,6 @@ pub fn routes() -> Router {
 /// Validates and sorts categories by path length.
 /// Returns an Error if a path is empty or a parent path is missing.
 fn validate_and_sort_categories(mut categories: Vec<ImportCategory>) -> Result<Vec<ImportCategory>, &'static str> {
-    // Sorting by path length guarantees parents (shorter paths) are processed before children
     categories.sort_by_key(|c| c.path.len());
 
     let mut known_paths: HashSet<Vec<String>> = HashSet::new();
@@ -27,7 +26,6 @@ fn validate_and_sort_categories(mut categories: Vec<ImportCategory>) -> Result<V
 
         let parent_path = &cat.path[..cat.path.len() - 1];
         
-        // If it has a parent, the parent MUST have been processed already
         if !parent_path.is_empty() && !known_paths.contains(parent_path) {
             return Err("Missing parent category in import payload.");
         }
@@ -43,7 +41,6 @@ pub async fn import_data(
     AuthSession(user): AuthSession,
     Json(payload): Json<ImportPayload>,
 ) -> StatusCode {
-    // Validation (Fails fast before touching the database)
     let sorted_categories = match validate_and_sort_categories(payload.categories) {
         Ok(categories) => categories,
         Err(e) => {
@@ -57,14 +54,13 @@ pub async fn import_data(
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
     };
 
-    // Maps a full Materialized Path (e.g., ["Auto", "Gas"]) to its Postgres ID
     let mut category_map: HashMap<Vec<String>, i32> = HashMap::new();
 
-    // Insert Categories in Top-Down Order
+    // 1. Insert Categories
     for cat in sorted_categories {
         let name = match cat.path.last() {
             Some(n) => n.clone(),
-            None => return StatusCode::BAD_REQUEST, // Caught by validation, but safe unwrap
+            None => return StatusCode::BAD_REQUEST,
         };
 
         let parent_path = &cat.path[..cat.path.len() - 1];
@@ -75,7 +71,6 @@ pub async fn import_data(
             category_map.get(parent_path).copied()
         };
 
-        // Insert using the schema and scoped uniqueness expression
         let rec = sqlx::query!(
             r#"
             INSERT INTO categories (user_id, name, created_at, is_asset, parent_id)
@@ -94,11 +89,33 @@ pub async fn import_data(
         .await
         .expect("Failed to insert category");
 
-        // Map the full path to the newly generated Postgres ID
         category_map.insert(cat.path.clone(), rec.id);
     }
 
-    // Insert Transactions
+    let mut tag_map: HashMap<String, i32> = HashMap::new();
+
+    // 2. Insert Tags
+    for tag in payload.tags {
+        let rec = sqlx::query!(
+            r#"
+            INSERT INTO tags (user_id, name, created_at)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id, name) 
+            DO UPDATE SET name = EXCLUDED.name -- Dummy update to force RETURNING id on conflict
+            RETURNING id
+            "#,
+            user.id,
+            tag.name,
+            convert_chrono_to_time(tag.created_at)
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .expect("Failed to insert tag");
+
+        tag_map.insert(tag.name.clone(), rec.id);
+    }
+
+    // 3. Insert Transactions
     for tx_item in payload.transactions {
         let category_id = match category_map.get(&tx_item.category_path) {
             Some(id) => *id,
@@ -110,10 +127,11 @@ pub async fn import_data(
 
         let amount = BigDecimal::from_f64(tx_item.amount).unwrap_or(BigDecimal::from(0));
 
-        let _ = sqlx::query!(
+        let tx_record = sqlx::query!(
             r#"
             INSERT INTO transactions (user_id, category_id, description, amount, created_at)
             VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
             "#,
             user.id,
             category_id,
@@ -121,12 +139,51 @@ pub async fn import_data(
             amount,
             convert_chrono_to_time(tx_item.created_at),
         )
-        .execute(&mut *tx)
+        .fetch_one(&mut *tx)
         .await
         .expect("Failed to insert transaction");
+
+        // Process and link tags for this transaction
+        for tag_name in tx_item.tags {
+            let tag_id = match tag_map.get(&tag_name) {
+                Some(&id) => id,
+                None => {
+                    // Fallback: Check if the tag exists in the DB but wasn't in the payload's top-level array
+                    let existing_tag = sqlx::query!(
+                        "SELECT id FROM tags WHERE user_id = $1 AND name = $2 LIMIT 1",
+                        user.id,
+                        tag_name
+                    )
+                    .fetch_optional(&mut *tx)
+                    .await
+                    .expect("Failed to query tag");
+
+                    if let Some(row) = existing_tag {
+                        tag_map.insert(tag_name.clone(), row.id);
+                        row.id
+                    } else {
+                        eprintln!("Transaction references an unknown tag: {}", tag_name);
+                        return StatusCode::BAD_REQUEST;
+                    }
+                }
+            };
+
+            sqlx::query!(
+                r#"
+                INSERT INTO transaction_tags (transaction_id, tag_id, user_id) 
+                VALUES ($1, $2, $3)
+                ON CONFLICT (transaction_id, tag_id) DO NOTHING
+                "#,
+                tx_record.id,
+                tag_id,
+                user.id
+            )
+            .execute(&mut *tx)
+            .await
+            .expect("Failed to link tag");
+        }
     }
 
-    // Commit everything
     if let Err(_) = tx.commit().await {
         return StatusCode::INTERNAL_SERVER_ERROR;
     }

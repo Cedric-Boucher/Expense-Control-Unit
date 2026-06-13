@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        UPDATE transactions\n        SET\n            description = $1,\n            amount = $2,\n            created_at = COALESCE($3, created_at),\n            category_id = $4\n        WHERE id = $5\n        RETURNING id, description, amount, created_at, category_id\n        ",
+  "query": "\n        UPDATE transactions\n        SET\n            description = $1,\n            amount = $2,\n            created_at = COALESCE($3, created_at),\n            category_id = $4\n        WHERE id = $5 AND user_id = $6\n        RETURNING id, description, amount, created_at, category_id\n        ",
   "describe": {
     "columns": [
       {
@@ -35,7 +35,8 @@
         "Numeric",
         "Timestamptz",
         "Int4",
-        "Int4"
+        "Int4",
+        "Uuid"
       ]
     },
     "nullable": [
@@ -46,5 +47,5 @@
       false
     ]
   },
-  "hash": "2ed3e74b2c515cdd239741762281189b1d99754716428fad3acba8985d7eba2f"
+  "hash": "18988bdfbb5c0de142a4dd79c052c3902694b1e0213b68a8bb06b6c85051e865"
 }

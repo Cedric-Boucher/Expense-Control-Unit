@@ -5,3 +5,4 @@ pub mod login;
 pub mod logout;
 pub mod categories;
 pub mod import;
+pub mod tags;
