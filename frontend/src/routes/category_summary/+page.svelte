@@ -1,8 +1,10 @@
 <script lang="ts">
-	import type { Transaction, Category } from '$lib/types';
+	import { untrack } from 'svelte';
+	import type { Transaction, Category, Tag } from '$lib/types';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
-	let { data }: { data: { transactions: Transaction[]; categories: Category[] } } = $props();
+	let { data }: { data: { transactions: Transaction[]; categories: Category[]; tags: Tag[] } } =
+		$props();
 
 	// --- Controls State ---
 	let periodType = $state<'month' | 'year' | 'all' | 'custom'>('all');
@@ -14,6 +16,47 @@
 	let amountMode = $state<'total' | 'average'>('total');
 
 	let expandedIds = $state<Set<number>>(new Set());
+
+	// --- Tag Filter Logic ---
+	let sortedTags = $derived([...data.tags].sort((a, b) => a.name.localeCompare(b.name)));
+
+	let selectedTagIds = $state<Set<number>>(untrack(() => new Set(sortedTags.map((t) => t.id))));
+
+	let isTagFilterActive = $derived(selectedTagIds.size < sortedTags.length);
+	let isTagFilterOpen = $state(false);
+	let tagFilterContainer: HTMLDivElement | undefined = $state();
+	let tagSearchQuery = $state('');
+
+	let visibleTags = $derived(
+		sortedTags.filter((tag) => tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase()))
+	);
+
+	function toggleTag(id: number) {
+		const newSet = new SvelteSet(selectedTagIds);
+		if (newSet.has(id)) newSet.delete(id);
+		else newSet.add(id);
+		selectedTagIds = newSet;
+	}
+
+	function selectAllTags() {
+		selectedTagIds = new Set(sortedTags.map((t) => t.id));
+	}
+
+	function clearAllTags() {
+		selectedTagIds = new Set();
+	}
+
+	$effect(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (tagFilterContainer && !tagFilterContainer.contains(event.target as Node)) {
+				isTagFilterOpen = false;
+			}
+		}
+		document.addEventListener('click', handleClickOutside);
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+		};
+	});
 
 	// --- Date Math ---
 	let dateRange = $derived.by(() => {
@@ -71,7 +114,6 @@
 		let end = dateRange.end || new Date();
 
 		if (periodType === 'all' && data.transactions.length > 0) {
-			// Find earliest transaction
 			const earliest = data.transactions.reduce(
 				(min, tx) => (tx.created_at < min ? tx.created_at : min),
 				data.transactions[0].created_at
@@ -94,16 +136,20 @@
 	};
 
 	let treeData = $derived.by(() => {
-		// 1. Filter transactions by date AND view mode
+		// 1. Filter transactions by date, view mode, AND tag
 		const filteredTxs = data.transactions.filter((tx) => {
 			const txDate = new Date(tx.created_at);
 			if (dateRange.start && txDate < dateRange.start) return false;
 			if (dateRange.end && txDate > dateRange.end) return false;
 
-			// STRICT DIRECTIONAL FILTERING:
-			// Filter out opposite-sign transactions before summing for isolated views
 			if (viewMode === 'expenses' && tx.amount > 0) return false;
 			if (viewMode === 'income' && tx.amount < 0) return false;
+
+			// Tag Match Logic
+			const tagMatch =
+				!isTagFilterActive ||
+				(tx.tags && tx.tags.some((tag) => selectedTagIds.has(tag.id)));
+			if (!tagMatch) return false;
 
 			return true;
 		});
@@ -130,13 +176,10 @@
 
 			childrenNodes.forEach((node) => {
 				node.children = buildAndRollup(node.category.id);
-				// Total is direct + sum of all children's totals
 				node.totalSum =
 					node.directSum + node.children.reduce((sum, child) => sum + child.totalSum, 0);
 			});
 
-			// Sort from most negative to most positive based on the calculated totalSum.
-			// Fall back to alphabetical sorting if totals are identical.
 			return childrenNodes.sort((a, b) => {
 				if (a.totalSum !== b.totalSum) {
 					return a.totalSum - b.totalSum;
@@ -151,7 +194,6 @@
 
 	// --- Formatters & Helpers ---
 	function formatAmount(amount: number) {
-		// Calculate average if toggled (no sign flipping needed anymore)
 		const finalValue = amountMode === 'average' ? amount / monthsSpan : amount;
 
 		return (
@@ -186,14 +228,89 @@
 <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 	<h1 class="text-2xl font-bold">Category Summary</h1>
 
-	<div class="flex flex-wrap gap-2">
-		<select bind:value={viewMode} class="p-2 border rounded bg-white dark:bg-gray-800">
+	<div class="flex flex-wrap items-center gap-2">
+		<div class="relative" bind:this={tagFilterContainer}>
+			<button
+				type="button"
+				class="px-4 py-2 rounded flex items-center gap-2 transition-colors
+                {isTagFilterActive
+					? 'bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:hover:bg-amber-800'
+					: 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600'}"
+				onclick={() => (isTagFilterOpen = !isTagFilterOpen)}
+			>
+				<span class="font-medium">
+					{isTagFilterActive ? 'Filter Tags (Active)' : 'Filter Tags'}
+				</span>
+				<svg
+					class="w-4 h-4"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M19 9l-7 7-7-7"
+					/>
+				</svg>
+			</button>
+
+			{#if isTagFilterOpen}
+				<div
+					class="absolute right-0 mt-2 w-64 bg-gray-100 dark:bg-gray-800 p-4 rounded shadow-lg z-20"
+				>
+					<input
+						type="text"
+						placeholder="Search tags..."
+						class="w-full p-2 mb-3 border rounded dark:bg-gray-700 dark:text-white"
+						bind:value={tagSearchQuery}
+					/>
+
+					<div class="flex flex-col gap-2 max-h-64 overflow-auto">
+						{#if visibleTags.length > 0}
+							{#each visibleTags as tag (tag.id)}
+								<label class="flex items-center space-x-2">
+									<input
+										type="checkbox"
+										checked={selectedTagIds.has(tag.id)}
+										onchange={() => toggleTag(tag.id)}
+									/>
+									<span>{tag.name}</span>
+								</label>
+							{/each}
+						{:else}
+							<p class="text-sm text-gray-500 italic">No tags found</p>
+						{/if}
+					</div>
+
+					<div class="flex justify-between mt-3">
+						<button
+							type="button"
+							class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
+							onclick={selectAllTags}>Select All</button
+						>
+						<button
+							type="button"
+							class="px-3 py-1 rounded bg-gray-400 text-white hover:bg-gray-500"
+							onclick={clearAllTags}>Deselect All</button
+						>
+					</div>
+				</div>
+			{/if}
+		</div>
+
+		<select bind:value={viewMode} class="p-2 border rounded bg-white dark:bg-gray-800 text-sm">
 			<option value="expenses">Expenses Only</option>
 			<option value="income">Income Only</option>
 			<option value="combined">Net Combined</option>
 		</select>
 
-		<select bind:value={amountMode} class="p-2 border rounded bg-white dark:bg-gray-800">
+		<select
+			bind:value={amountMode}
+			class="p-2 border rounded bg-white dark:bg-gray-800 text-sm"
+		>
 			<option value="total">Total Sum</option>
 			<option value="average">Monthly Average</option>
 		</select>
@@ -326,7 +443,7 @@
 	{/each}
 	{#if treeData.length === 0 || data.transactions.length === 0}
 		<div class="p-4 text-center text-gray-500 italic">
-			No transactions found for this period.
+			No transactions found for this period/filter.
 		</div>
 	{/if}
 </div>
