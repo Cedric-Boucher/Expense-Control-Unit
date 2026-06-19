@@ -112,6 +112,12 @@
 							Categories
 						</button>
 						<button
+							onclick={() => handleNav('/tags')}
+							class={navButtonClasses('/tags')}
+						>
+							Tags
+						</button>
+						<button
 							onclick={() => handleNav('/summary')}
 							class={navButtonClasses('/summary')}
 						>
@@ -235,6 +241,9 @@
 					class={navButtonClasses('/categories')}
 				>
 					Categories
+				</button>
+				<button onclick={() => handleNav('/tags')} class={navButtonClasses('/tags')}>
+					Tags
 				</button>
 				<button onclick={() => handleNav('/summary')} class={navButtonClasses('/summary')}>
 					Summary

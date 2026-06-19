@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO transaction_tags (user_id, transaction_id, tag_id) \n            SELECT $3, $1, id FROM tags WHERE id = $2 AND user_id = $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1688bbb0d63910c3f979dc22288bf4d92782b48007de9559bc03a77078203b6d"
+}

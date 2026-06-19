@@ -107,12 +107,12 @@ pub async fn create_transaction(
     for tag_id in &payload.tag_ids {
         sqlx::query!(
             r#"
-            INSERT INTO transaction_tags (transaction_id, tag_id) 
-            SELECT $1, id FROM tags WHERE id = $2 AND user_id = $3
+            INSERT INTO transaction_tags (user_id, transaction_id, tag_id)
+            VALUES ($1, $2, $3)
             "#,
+            user.id,
             record.id,
-            tag_id,
-            user.id
+            tag_id
         )
         .execute(&mut *tx)
         .await
@@ -287,8 +287,8 @@ async fn update_transaction(
     for tag_id in &payload.tag_ids {
         sqlx::query!(
             r#"
-            INSERT INTO transaction_tags (transaction_id, tag_id) 
-            SELECT $1, id FROM tags WHERE id = $2 AND user_id = $3
+            INSERT INTO transaction_tags (user_id, transaction_id, tag_id) 
+            SELECT $3, $1, id FROM tags WHERE id = $2 AND user_id = $3
             "#,
             id,
             tag_id,

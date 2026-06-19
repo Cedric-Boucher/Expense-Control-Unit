@@ -1,12 +1,14 @@
 import { format } from 'date-fns';
-import { getTransactions, getCategories, uploadUserData } from '$lib/api';
+import { getTransactions, getCategories, getTags, uploadUserData } from '$lib/api';
 import type {
 	Category,
 	CategoryNode,
 	Transaction,
+	Tag,
 	ImportPayload,
 	ImportCategory,
-	ImportTransaction
+	ImportTransaction,
+	ImportTag
 } from '$lib/types';
 import { invalidateAll } from '$app/navigation';
 
@@ -22,10 +24,8 @@ export function formatTimestampLocalForDisplay(isoString: string): string {
 
 export async function exportUserDataToFile() {
 	try {
-		const [transactions, categories]: [Transaction[], Category[]] = await Promise.all([
-			getTransactions(),
-			getCategories()
-		]);
+		const [transactions, categories, tags]: [Transaction[], Category[], Tag[]] =
+			await Promise.all([getTransactions(), getCategories(), getTags()]);
 
 		// Map for instant O(1) lookups
 		const categoryMap = new Map<number, Category>(categories.map((c) => [c.id, c]));
@@ -54,17 +54,25 @@ export async function exportUserDataToFile() {
 			is_asset: cat.is_asset
 		}));
 
+		// Format tags for export using the new ImportTag schema
+		const exportTags: ImportTag[] = tags.map((tag) => ({
+			name: tag.name,
+			created_at: tag.created_at
+		}));
+
 		// Format transactions for export using the new ImportTransaction schema
 		const exportTransactions: ImportTransaction[] = transactions.map((tx) => ({
 			category_path: categoryIdToPath.get(tx.category.id) || [tx.category.name],
 			amount: tx.amount,
 			description: tx.description,
-			created_at: tx.created_at
+			created_at: tx.created_at,
+			tags: tx.tags.map((t) => t.name)
 		}));
 
 		const exportData: ImportPayload = {
-			transactions: exportTransactions,
-			categories: exportCategories
+			categories: exportCategories,
+			tags: exportTags,
+			transactions: exportTransactions
 		};
 
 		const json = JSON.stringify(exportData, null, 2);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { getCategories } from '$lib/api';
-	import type { Category, NewTransaction, Transaction } from '$lib/types';
+	import { getCategories, getTags, createTag } from '$lib/api';
+	import type { Category, NewTransaction, Transaction, Tag } from '$lib/types';
 	import { formatTimestampLocal } from '$lib/utils';
 
 	let {
@@ -44,6 +44,22 @@
 		)
 	);
 
+	let availableTags = $state<Tag[]>([]);
+	let selectedTags = $state<{ id?: number; name: string }[]>(
+		untrack(() => (initial.tags ? initial.tags.map((t) => ({ id: t.id, name: t.name })) : []))
+	);
+	let tagInput = $state('');
+	let showTagDropdown = $state(false);
+	let tagContainer: HTMLDivElement | undefined = $state();
+
+	let filteredTags = $derived(
+		availableTags.filter(
+			(t) =>
+				t.name.toLowerCase().includes(tagInput.toLowerCase()) &&
+				!selectedTags.some((st) => st.name.toLowerCase() === t.name.toLowerCase())
+		)
+	);
+
 	let timestampTouched = $state(false);
 	let timer: ReturnType<typeof setInterval> | null = $state(null);
 
@@ -63,25 +79,31 @@
 
 	onMount(() => {
 		async function fetchInitialData() {
-			const result = await getCategories();
-			const map = new Map(result.map((c) => [c.id, c]));
+			try {
+				const [catsResult, tagsResult] = await Promise.all([getCategories(), getTags()]);
 
-			const enriched = result.map((c) => {
-				let path = c.name;
-				let curr = c;
-				while (curr.parent_id && map.has(curr.parent_id)) {
-					curr = map.get(curr.parent_id)!;
-					path = curr.name + ' / ' + path;
+				// Map Categories
+				const map = new Map(catsResult.map((c) => [c.id, c]));
+				const enriched = catsResult.map((c) => {
+					let path = c.name;
+					let curr = c;
+					while (curr.parent_id && map.has(curr.parent_id)) {
+						curr = map.get(curr.parent_id)!;
+						path = curr.name + ' / ' + path;
+					}
+					return { ...c, pathName: path };
+				});
+
+				categories = enriched;
+				availableTags = tagsResult;
+
+				if (initial.category) {
+					const initCat = enriched.find((c) => c.id === initial.category?.id);
+					selectedCategory = initCat || initial.category;
+					inputValue = initCat?.pathName || initial.category.name;
 				}
-				return { ...c, pathName: path };
-			});
-
-			categories = enriched;
-
-			if (initial.category) {
-				const initCat = enriched.find((c) => c.id === initial.category?.id);
-				selectedCategory = initCat || initial.category;
-				inputValue = initCat?.pathName || initial.category.name;
+			} catch (err) {
+				console.error('Failed to load initial form data:', err);
 			}
 		}
 
@@ -104,10 +126,12 @@
 			if (categoryContainer && !categoryContainer.contains(event.target as Node)) {
 				showDropdown = false;
 			}
+			if (tagContainer && !tagContainer.contains(event.target as Node)) {
+				showTagDropdown = false;
+			}
 		};
 		document.addEventListener('click', handleClickOutside, true);
 
-		// Return a cleanup function directly from onMount
 		return () => {
 			document.removeEventListener('click', handleClickOutside, true);
 			if (timer) clearInterval(timer);
@@ -123,7 +147,39 @@
 		showDropdown = false;
 	}
 
-	async function submit() {
+	function addTag(tag: { id?: number; name: string }) {
+		if (!selectedTags.some((t) => t.name.toLowerCase() === tag.name.toLowerCase())) {
+			selectedTags = [...selectedTags, tag];
+		}
+		tagInput = '';
+		showTagDropdown = false;
+	}
+
+	function removeTag(index: number) {
+		selectedTags = selectedTags.filter((_, i) => i !== index);
+	}
+
+	function handleTagKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ',') {
+			e.preventDefault();
+			const val = tagInput.trim();
+			if (val) {
+				const existing = availableTags.find(
+					(t) => t.name.toLowerCase() === val.toLowerCase()
+				);
+				if (existing) {
+					addTag({ id: existing.id, name: existing.name });
+				} else {
+					addTag({ name: val });
+				}
+			}
+		} else if (e.key === 'Backspace' && !tagInput && selectedTags.length > 0) {
+			removeTag(selectedTags.length - 1);
+		}
+	}
+
+	async function submit(e: Event) {
+		e.preventDefault();
 		error = '';
 
 		if (!amount || !selectedCategory) {
@@ -131,20 +187,32 @@
 			return;
 		}
 
-		const payload: NewTransaction = {
-			description,
-			amount: Number(amount) * (isExpense ? -1 : 1),
-			category_id: selectedCategory.id
-		};
-
-		if (timestampTouched || hasInitialTimestamp) {
-			payload.created_at = toISOStringIfDefined(timestamp || undefined);
-		}
-
 		try {
+			// Ensure any newly typed tags are created on the backend first
+			const tag_ids: number[] = [];
+			for (const t of selectedTags) {
+				if (t.id) {
+					tag_ids.push(t.id);
+				} else {
+					const newTag = await createTag({ name: t.name });
+					tag_ids.push(newTag.id);
+				}
+			}
+
+			const payload: NewTransaction = {
+				description,
+				amount: Number(amount) * (isExpense ? -1 : 1),
+				category_id: selectedCategory.id,
+				tag_ids
+			};
+
+			if (timestampTouched || hasInitialTimestamp) {
+				payload.created_at = toISOStringIfDefined(timestamp || undefined);
+			}
+
 			await onSubmit(payload);
 		} catch (e) {
-			error = 'Failed to submit transaction.';
+			error = e instanceof Error ? e.message : 'Failed to submit transaction.';
 			console.error(e);
 		}
 	}
@@ -218,11 +286,79 @@
 			>
 				{#each filtered as category (category.id)}
 					<li class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-950 cursor-pointer">
-						<button onclick={() => handleSelect(category)}>{category.pathName}</button>
+						<button
+							type="button"
+							class="w-full text-left"
+							onclick={() => handleSelect(category)}>{category.pathName}</button
+						>
 					</li>
 				{/each}
 				{#if filtered.length === 0}
 					<li class="px-3 py-2 text-gray-500 dark:text-gray-300">No matches found</li>
+				{/if}
+			</ul>
+		{/if}
+	</div>
+
+	<div bind:this={tagContainer} class="relative">
+		<label for="tagInput" class="block font-medium">Tags</label>
+		<div
+			class="w-full p-2 border rounded bg-white dark:bg-transparent flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500"
+		>
+			{#each selectedTags as tag, i (i)}
+				<span
+					class="flex items-center gap-1 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 text-sm px-2 py-0.5 rounded"
+				>
+					{tag.name}
+					<button
+						type="button"
+						class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
+						onclick={() => removeTag(i)}
+					>
+						&times;
+					</button>
+				</span>
+			{/each}
+			<input
+				id="tagInput"
+				type="text"
+				bind:value={tagInput}
+				oninput={() => (showTagDropdown = true)}
+				onfocus={() => (showTagDropdown = true)}
+				onkeydown={handleTagKeydown}
+				placeholder={selectedTags.length ? '' : 'Add tags (comma or enter)...'}
+				class="flex-1 min-w-[150px] outline-none bg-transparent"
+			/>
+		</div>
+		{#if showTagDropdown && (filteredTags.length > 0 || tagInput.trim())}
+			<ul
+				class="absolute z-10 bg-white dark:bg-gray-800 border w-full mt-1 max-h-48 overflow-auto shadow rounded"
+			>
+				{#each filteredTags as tag (tag.id)}
+					<li class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-950 cursor-pointer">
+						<button
+							type="button"
+							class="w-full text-left"
+							onclick={() => addTag({ id: tag.id, name: tag.name })}
+						>
+							{tag.name}
+						</button>
+					</li>
+				{/each}
+				{#if tagInput.trim() && !availableTags.some((t) => t.name.toLowerCase() === tagInput
+								.trim()
+								.toLowerCase())}
+					<li
+						class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-950 cursor-pointer text-blue-600 dark:text-blue-400"
+					>
+						<button
+							type="button"
+							class="w-full text-left font-medium"
+							onclick={() => addTag({ name: tagInput.trim() })}
+						>
+							+ Create tag "{tagInput.trim()}"
+						</button>
+					</li>
 				{/if}
 			</ul>
 		{/if}
