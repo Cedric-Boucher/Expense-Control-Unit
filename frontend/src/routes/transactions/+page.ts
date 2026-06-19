@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { getTransactions, getCategories, load_user } from '$lib/api';
+import { getTransactions, getCategories, getTags, load_user } from '$lib/api';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async () => {
@@ -9,7 +9,11 @@ export const load: PageLoad = async () => {
 		throw redirect(302, '/login');
 	}
 
-	const [transactions, categories] = await Promise.all([getTransactions(), getCategories()]);
+	const [transactions, categories, tags] = await Promise.all([
+		getTransactions(),
+		getCategories(),
+		getTags()
+	]);
 
-	return { transactions, categories };
+	return { transactions, categories, tags };
 };
