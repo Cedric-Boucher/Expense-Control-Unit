@@ -172,7 +172,10 @@
 			<option value="combined">Net Combined</option>
 		</select>
 
-		<select bind:value={amountMode} class="p-2 border rounded bg-white dark:bg-gray-800 text-sm">
+		<select
+			bind:value={amountMode}
+			class="p-2 border rounded bg-white dark:bg-gray-800 text-sm"
+		>
 			<option value="total">Total Sum</option>
 			<option value="average">Monthly Average</option>
 		</select>
