@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, name, created_at\n        FROM tags\n        WHERE user_id = $1\n        ORDER BY name ASC\n        ",
+  "query": "\n        SELECT id, name, created_at, closing_date\n        FROM tags\n        WHERE user_id = $1\n        ORDER BY name ASC\n        ",
   "describe": {
     "columns": [
       {
@@ -17,6 +17,11 @@
         "ordinal": 2,
         "name": "created_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "closing_date",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
@@ -27,8 +32,9 @@
     "nullable": [
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "966e8ccc7c787ca1a6e7bad7905835af67fea5c96f20de49ab0e580e0c7ec67d"
+  "hash": "ff6b6921168d63b068a613162ae2c397ffcffb8abf91a80ba8d512e78908fdbb"
 }

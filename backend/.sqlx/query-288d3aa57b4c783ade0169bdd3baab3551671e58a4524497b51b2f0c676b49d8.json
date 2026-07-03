@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT tt.transaction_id, t.id, t.name, t.created_at\n        FROM tags t\n        JOIN transaction_tags tt ON t.id = tt.tag_id\n        WHERE t.user_id = $1\n        ",
+  "query": "\n        SELECT tt.transaction_id, t.id, t.name, t.created_at, t.closing_date\n        FROM tags t\n        JOIN transaction_tags tt ON t.id = tt.tag_id\n        WHERE t.user_id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -22,6 +22,11 @@
         "ordinal": 3,
         "name": "created_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "closing_date",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
@@ -33,8 +38,9 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "ce78a9808803056b5637e4b7be0fa85c150f553e88ba104aced1cc32f8806eb7"
+  "hash": "288d3aa57b4c783ade0169bdd3baab3551671e58a4524497b51b2f0c676b49d8"
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO tags (user_id, name)\n        VALUES ($1, $2)\n        RETURNING id, name, created_at\n        ",
+  "query": "\n        INSERT INTO tags (user_id, name, closing_date)\n        VALUES ($1, $2, $3)\n        RETURNING id, name, created_at, closing_date\n        ",
   "describe": {
     "columns": [
       {
@@ -17,19 +17,26 @@
         "ordinal": 2,
         "name": "created_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "closing_date",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
         "Uuid",
-        "Text"
+        "Text",
+        "Timestamptz"
       ]
     },
     "nullable": [
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "d5a4f59d956a08b13c24174567a99d7a799175660160a378e1bf74faea93b4df"
+  "hash": "3ec36209e3486340a48426f8444aec2b834192ec83fd043256a06d8e45c771a6"
 }

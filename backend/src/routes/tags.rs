@@ -1,6 +1,6 @@
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, routing::get, Extension, Json, Router};
 use sqlx::PgPool;
-use crate::{middleware::AuthSession, models::tag::{Tag, NewTag}, time_conversion::convert_time_to_chrono};
+use crate::{middleware::AuthSession, models::tag::{NewTag, Tag}, time_conversion::{convert_chrono_to_time, convert_time_to_chrono}};
 
 pub fn routes() -> Router {
     Router::new()
@@ -12,9 +12,9 @@ async fn list_tags(
     Extension(pool): Extension<PgPool>,
     AuthSession(user): AuthSession,
 ) -> impl IntoResponse {
-    let rows: Vec<Tag> = sqlx::query!(
+    let rows = sqlx::query!(
         r#"
-        SELECT id, name, created_at
+        SELECT id, name, created_at, closing_date
         FROM tags
         WHERE user_id = $1
         ORDER BY name ASC
@@ -29,8 +29,9 @@ async fn list_tags(
         id: row.id,
         name: row.name,
         created_at: convert_time_to_chrono(row.created_at),
+        closing_date: row.closing_date.map(convert_time_to_chrono),
     })
-    .collect();
+    .collect::<Vec<Tag>>();
 
     Json(rows)
 }
@@ -62,14 +63,17 @@ pub async fn create_tag(
         return Err(StatusCode::CONFLICT);
     }
 
+    // Convert the optional chrono DateTime to the format sqlx expects for TIMESTAMPTZ (if needed, or pass directly depending on driver setup. Assuming your setup passes chrono directly or you use a conversion fn).
+    // Using the reverse conversion or relying on sqlx's native chrono feature:
     let record = sqlx::query!(
         r#"
-        INSERT INTO tags (user_id, name)
-        VALUES ($1, $2)
-        RETURNING id, name, created_at
+        INSERT INTO tags (user_id, name, closing_date)
+        VALUES ($1, $2, $3)
+        RETURNING id, name, created_at, closing_date
         "#,
         user.id,
-        trimmed_name
+        trimmed_name,
+        payload.closing_date.map(convert_chrono_to_time)
     )
     .fetch_one(&pool)
     .await
@@ -79,6 +83,7 @@ pub async fn create_tag(
         id: record.id,
         name: record.name,
         created_at: convert_time_to_chrono(record.created_at),
+        closing_date: record.closing_date.map(convert_time_to_chrono),
     };
 
     Ok(Json(result))
@@ -91,7 +96,7 @@ async fn get_tag(
 ) -> impl IntoResponse {
     let existing = sqlx::query!(
         r#"
-        SELECT id, name, created_at
+        SELECT id, name, created_at, closing_date
         FROM tags
         WHERE id = $1 AND user_id = $2
         "#,
@@ -111,6 +116,7 @@ async fn get_tag(
         id: row.id,
         name: row.name,
         created_at: convert_time_to_chrono(row.created_at),
+        closing_date: row.closing_date.map(convert_time_to_chrono),
     };
 
     Ok(Json(tag))
@@ -150,11 +156,12 @@ async fn update_tag(
     let row = sqlx::query!(
         r#"
         UPDATE tags 
-        SET name = $1
-        WHERE id = $2 AND user_id = $3
-        RETURNING id, name, created_at
+        SET name = $1, closing_date = $2
+        WHERE id = $3 AND user_id = $4
+        RETURNING id, name, created_at, closing_date
         "#,
         trimmed_name,
+        payload.closing_date.map(convert_chrono_to_time),
         id,
         user.id
     )
@@ -173,6 +180,7 @@ async fn update_tag(
         id: row.id,
         name: row.name,
         created_at: convert_time_to_chrono(row.created_at),
+        closing_date: row.closing_date.map(convert_time_to_chrono),
     };
 
     Ok(Json(updated))

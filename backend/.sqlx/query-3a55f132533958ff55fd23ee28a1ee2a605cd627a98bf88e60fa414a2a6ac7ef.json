@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        UPDATE tags \n        SET name = $1\n        WHERE id = $2 AND user_id = $3\n        RETURNING id, name, created_at\n        ",
+  "query": "\n        SELECT t.id, t.name, t.created_at, t.closing_date\n        FROM tags t\n        JOIN transaction_tags tt ON t.id = tt.tag_id\n        WHERE tt.transaction_id = $1 AND t.user_id = $2\n        ORDER BY t.name ASC\n        ",
   "describe": {
     "columns": [
       {
@@ -17,11 +17,15 @@
         "ordinal": 2,
         "name": "created_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "closing_date",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Text",
         "Int4",
         "Uuid"
       ]
@@ -29,8 +33,9 @@
     "nullable": [
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "0f580ad17c26b555707e1c11512001b38baa392099679a1a24d660457eddb528"
+  "hash": "3a55f132533958ff55fd23ee28a1ee2a605cd627a98bf88e60fa414a2a6ac7ef"
 }

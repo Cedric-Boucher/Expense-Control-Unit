@@ -19,7 +19,7 @@ async fn list_transactions(
 ) -> impl IntoResponse {
     let tags_records = sqlx::query!(
         r#"
-        SELECT tt.transaction_id, t.id, t.name, t.created_at
+        SELECT tt.transaction_id, t.id, t.name, t.created_at, t.closing_date
         FROM tags t
         JOIN transaction_tags tt ON t.id = tt.tag_id
         WHERE t.user_id = $1
@@ -36,6 +36,7 @@ async fn list_transactions(
             id: row.id,
             name: row.name,
             created_at: convert_time_to_chrono(row.created_at),
+            closing_date: row.closing_date.map(convert_time_to_chrono)
         });
     }
 
@@ -172,7 +173,7 @@ async fn fetch_transaction_tags(
 ) -> Vec<Tag> {
     sqlx::query!(
         r#"
-        SELECT t.id, t.name, t.created_at
+        SELECT t.id, t.name, t.created_at, t.closing_date
         FROM tags t
         JOIN transaction_tags tt ON t.id = tt.tag_id
         WHERE tt.transaction_id = $1 AND t.user_id = $2
@@ -189,6 +190,7 @@ async fn fetch_transaction_tags(
         id: row.id,
         name: row.name,
         created_at: convert_time_to_chrono(row.created_at),
+        closing_date: row.closing_date.map(convert_time_to_chrono)
     })
     .collect()
 }

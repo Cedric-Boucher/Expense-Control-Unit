@@ -288,7 +288,7 @@ async fn get_transactions(
             SELECT c.id FROM categories c
             INNER JOIN category_tree ct ON c.parent_id = ct.id
         )
-        SELECT tt.transaction_id, t.id, t.name, t.created_at
+        SELECT tt.transaction_id, t.id, t.name, t.created_at, t.closing_date
         FROM tags t
         JOIN transaction_tags tt ON t.id = tt.tag_id
         JOIN transactions txn ON tt.transaction_id = txn.id
@@ -308,6 +308,7 @@ async fn get_transactions(
             id: row.id,
             name: row.name,
             created_at: convert_time_to_chrono(row.created_at),
+            closing_date: row.closing_date.map(convert_time_to_chrono)
         });
     }
 

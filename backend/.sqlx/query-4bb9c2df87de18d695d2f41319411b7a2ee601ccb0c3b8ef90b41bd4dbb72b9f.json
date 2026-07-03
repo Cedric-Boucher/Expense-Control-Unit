@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH RECURSIVE category_tree AS (\n            SELECT id FROM categories WHERE id = $1 AND user_id = $2\n            UNION ALL\n            SELECT c.id FROM categories c\n            INNER JOIN category_tree ct ON c.parent_id = ct.id\n        )\n        SELECT tt.transaction_id, t.id, t.name, t.created_at, t.closing_date\n        FROM tags t\n        JOIN transaction_tags tt ON t.id = tt.tag_id\n        JOIN transactions txn ON tt.transaction_id = txn.id\n        WHERE txn.category_id IN (SELECT id FROM category_tree)\n        AND t.user_id = $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "transaction_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "closing_date",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4bb9c2df87de18d695d2f41319411b7a2ee601ccb0c3b8ef90b41bd4dbb72b9f"
+}
