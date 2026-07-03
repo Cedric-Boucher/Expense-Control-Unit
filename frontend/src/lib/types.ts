@@ -2,10 +2,12 @@ export type Tag = {
 	id: number;
 	name: string;
 	created_at: string;
+	closing_date: string | null;
 };
 
 export type NewTag = {
 	name: string;
+	closing_date?: string | null;
 };
 
 export type Transaction = {
@@ -64,6 +66,7 @@ export type ImportCategory = {
 export type ImportTag = {
 	name: string;
 	created_at: string;
+	closing_date?: string | null;
 };
 
 export type ImportTransaction = {

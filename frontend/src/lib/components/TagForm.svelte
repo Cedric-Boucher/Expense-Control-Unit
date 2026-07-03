@@ -3,6 +3,7 @@
 	import { onMount, untrack } from 'svelte';
 	import { getTags } from '$lib/api';
 	import type { Tag, NewTag } from '$lib/types';
+	import { formatTimestampLocal } from '$lib/utils';
 	import { resolve } from '$app/paths';
 
 	let {
@@ -18,6 +19,9 @@
 	} = $props();
 
 	let name = $state(untrack(() => initial.name ?? ''));
+	let closingDate = $state(
+		untrack(() => (initial.closing_date ? formatTimestampLocal(initial.closing_date) : ''))
+	);
 	let error = $state('');
 
 	let allTags = $state<Tag[]>([]);
@@ -26,13 +30,14 @@
 		allTags = await getTags();
 	});
 
-	// Reactively compute the normalized name
 	let trimmedName = $derived(name.trim().toLowerCase());
 
-	// Check if there's already a tag with this exact name
 	let hasDuplicate = $derived(
 		allTags.some((t) => t.id !== initial.id && t.name.toLowerCase() === trimmedName)
 	);
+
+	const toISOStringIfDefined = (str: string | undefined | null) =>
+		str ? new Date(str).toISOString() : null;
 
 	async function submit(e: Event) {
 		e.preventDefault();
@@ -50,7 +55,8 @@
 		}
 
 		const payload: NewTag = {
-			name: finalName
+			name: finalName,
+			closing_date: toISOStringIfDefined(closingDate)
 		};
 
 		try {
@@ -69,7 +75,38 @@
 <form onsubmit={submit} class="space-y-4 max-w-md">
 	<div>
 		<label for="name" class="block font-medium">Tag Name</label>
-		<input id="name" bind:value={name} class="w-full p-2 border rounded" />
+		<input
+			id="name"
+			bind:value={name}
+			class="w-full p-2 border rounded"
+			placeholder="e.g. 2006-honda-civic"
+		/>
+	</div>
+
+	<div>
+		<label for="closingDate" class="block font-medium">Closing Date (Optional)</label>
+		<p class="text-xs text-gray-500 mb-1">
+			If this tag represents an asset you sold or disposed of, set the date it was closed.
+			Leave blank if it is currently active.
+		</p>
+		<div class="flex items-center gap-2">
+			<input
+				id="closingDate"
+				type="datetime-local"
+				bind:value={closingDate}
+				step="1"
+				class="w-full p-2 border rounded flex-1"
+			/>
+			{#if closingDate}
+				<button
+					type="button"
+					class="px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 text-sm"
+					onclick={() => (closingDate = '')}
+				>
+					Clear
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	<div class="flex space-x-4 pt-2">
