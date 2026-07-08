@@ -29,11 +29,11 @@
 		untrack(() => (initial.created_at ? formatTimestampLocal(initial.created_at) : ''))
 	);
 
-	type CategoryWithPath = Category & { pathName?: string };
+	type CategoryWithPath = Category & { pathName?: string; is_asset_lineage?: boolean };
 
 	let categories = $state<CategoryWithPath[]>([]);
 	let inputValue = $state('');
-	let selectedCategory = $state<Category | null>(null);
+	let selectedCategory = $state<CategoryWithPath | null>(null);
 	let showDropdown = $state(false);
 	let error = $state('');
 	let categoryContainer: HTMLDivElement | undefined = $state();
@@ -58,6 +58,11 @@
 				t.name.toLowerCase().includes(tagInput.toLowerCase()) &&
 				!selectedTags.some((st) => st.name.toLowerCase() === t.name.toLowerCase())
 		)
+	);
+
+	// Derived state to check if the current category needs an asset tag but doesn't have one
+	let showAssetWarning = $derived(
+		selectedCategory?.is_asset_lineage && selectedTags.length === 0
 	);
 
 	let timestampTouched = $state(false);
@@ -87,11 +92,16 @@
 				const enriched = catsResult.map((c) => {
 					let path = c.name;
 					let curr = c;
+					let is_asset_lineage = c.is_asset;
+
 					while (curr.parent_id && map.has(curr.parent_id)) {
 						curr = map.get(curr.parent_id)!;
 						path = curr.name + ' / ' + path;
+						if (curr.is_asset) {
+							is_asset_lineage = true;
+						}
 					}
-					return { ...c, pathName: path };
+					return { ...c, pathName: path, is_asset_lineage };
 				});
 
 				categories = enriched;
@@ -99,7 +109,8 @@
 
 				if (initial.category) {
 					const initCat = enriched.find((c) => c.id === initial.category?.id);
-					selectedCategory = initCat || initial.category;
+					// Use the enriched category so we have is_asset_lineage
+					selectedCategory = initCat || (initial.category as CategoryWithPath);
 					inputValue = initCat?.pathName || initial.category.name;
 				}
 			} catch (err) {
@@ -381,6 +392,15 @@
 			oninput={handleTimestampFocusOrInput}
 		/>
 	</div>
+
+	{#if showAssetWarning}
+		<div
+			class="p-3 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm rounded border border-yellow-200 dark:border-yellow-800/50 shadow-sm transition-all duration-300"
+		>
+			⚠️ <strong>Missing Asset Tag:</strong> This category tracks assets. You should add a tag
+			to link this transaction to its specific asset.
+		</div>
+	{/if}
 
 	<div class="flex space-x-4">
 		<button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">

@@ -124,12 +124,6 @@
 							Category Summary
 						</button>
 						<button
-							onclick={() => handleNav('/tag_summary')}
-							class={navButtonClasses('/tag_summary')}
-						>
-							Tag Summary
-						</button>
-						<button
 							onclick={() => handleNav('/assets')}
 							class={navButtonClasses('/assets')}
 						>
@@ -256,12 +250,6 @@
 					class={navButtonClasses('/category_summary')}
 				>
 					Category Summary
-				</button>
-				<button
-					onclick={() => handleNav('/tag_summary')}
-					class={navButtonClasses('/tag_summary')}
-				>
-					Tag Summary
 				</button>
 				<button onclick={() => handleNav('/assets')} class={navButtonClasses('/assets')}>
 					Assets
