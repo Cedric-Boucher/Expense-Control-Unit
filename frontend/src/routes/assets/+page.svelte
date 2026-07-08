@@ -79,6 +79,8 @@
 
 		// 2. Build Category Trees scoped per Tag
 		for (const [key, txs] of txsByTag.entries()) {
+			if (txs.length === 0) continue; // Optimization: Skip rendering empty trees
+
 			const isUntagged = key === 'untagged';
 			const tag = isUntagged ? null : data.tags.find((t) => t.id === key) || null;
 
@@ -209,12 +211,16 @@
 	let untaggedAsset = $derived(treeData.untagged);
 
 	// --- Formatters & Helpers ---
+
+	// Optimization: Instantiate once outside the formatting function
+	const currencyFormatter = new Intl.NumberFormat('en-US', {
+		style: 'currency',
+		currency: 'USD',
+		signDisplay: 'auto'
+	});
+
 	function formatCurrency(amount: number) {
-		return new Intl.NumberFormat('en-US', {
-			style: 'currency',
-			currency: 'USD',
-			signDisplay: 'auto'
-		}).format(amount);
+		return currencyFormatter.format(amount);
 	}
 
 	function toggleExpand(compositeId: string) {
@@ -241,9 +247,13 @@
 		class="flex flex-col sm:flex-row flex-wrap items-end sm:items-center justify-end gap-4 ml-auto"
 	>
 		<div class="flex items-center gap-2">
-			<label for="interest" class="text-sm font-medium text-gray-600 dark:text-gray-300"
-				>TVM Interest:</label
+			<label
+				for="interest"
+				class="text-sm font-medium text-gray-600 dark:text-gray-300 cursor-help"
+				title="Annualized Time Value of Money (compounded against the asset's lifespan)"
 			>
+				TVM Interest:
+			</label>
 			<div class="relative">
 				<input
 					id="interest"
@@ -292,6 +302,8 @@
 			{#if hasChildren}
 				<button
 					onclick={() => toggleExpand(compositeId)}
+					aria-label="{isExpanded ? 'Collapse' : 'Expand'} {node.category.name}"
+					aria-expanded={isExpanded}
 					class="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-800 dark:hover:text-white mr-1"
 				>
 					{isExpanded ? '▼' : '▶'}
