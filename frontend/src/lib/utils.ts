@@ -1,64 +1,78 @@
 import { format } from 'date-fns';
-import { getTransactions, getCategories, uploadUserData } from '$lib/api';
-import type { Category, CategoryNode, Transaction } from '$lib/types';
+import { getTransactions, getCategories, getTags, uploadUserData } from '$lib/api';
+import type {
+	Category,
+	CategoryNode,
+	Transaction,
+	Tag,
+	ImportPayload,
+	ImportCategory,
+	ImportTransaction,
+	ImportTag
+} from '$lib/types';
 import { invalidateAll } from '$app/navigation';
 
 export function formatTimestampLocal(isoString: string): string {
-	const date = new Date(isoString); // converts to local time
+	const date = new Date(isoString);
 	return format(date, "yyyy-MM-dd'T'HH:mm:ss");
 }
 
 export function formatTimestampLocalForDisplay(isoString: string): string {
-	const date = new Date(isoString); // converts to local time
+	const date = new Date(isoString);
 	return format(date, 'yyyy-MM-dd HH:mm:ss');
 }
 
 export async function exportUserDataToFile() {
 	try {
-		const [transactions, categories]: [Transaction[], Category[]] = await Promise.all([
-			getTransactions(),
-			getCategories()
-		]);
+		const [transactions, categories, tags]: [Transaction[], Category[], Tag[]] =
+			await Promise.all([getTransactions(), getCategories(), getTags()]);
 
-		const roots = buildCategoryTree(categories);
+		// Map for instant O(1) lookups
+		const categoryMap = new Map<number, Category>(categories.map((c) => [c.id, c]));
+		const categoryIdToPath = new Map<number, string[]>();
 
-		const categoryIdToName = new Map(categories.map((c) => [c.id, c.name]));
+		// Recursive helper to build paths and cache them
+		const getPath = (id: number): string[] => {
+			if (categoryIdToPath.has(id)) return categoryIdToPath.get(id)!;
 
-		// Flatten the tree topologically (parents first, then children)
-		const sortedExportCategories = [];
-		const queue = [...roots];
+			const cat = categoryMap.get(id);
+			if (!cat) return []; // Should never happen unless DB data is orphaned
 
-		while (queue.length > 0) {
-			const current = queue.shift()!;
+			const path = cat.parent_id ? [...getPath(cat.parent_id), cat.name] : [cat.name];
 
-			// Extract what we need and map parent_id to parent_name
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			const { id, parent_id, children, ...categoryData } = current;
+			categoryIdToPath.set(id, path);
+			return path;
+		};
 
-			sortedExportCategories.push({
-				...categoryData,
-				parent_name: parent_id ? categoryIdToName.get(parent_id) || null : null
-			});
+		// Pre-compute all paths
+		categories.forEach((cat) => getPath(cat.id));
 
-			// Queue up the children for the next passes
-			if (children && children.length > 0) {
-				queue.push(...children);
-			}
-		}
+		// Format categories for export using the new ImportCategory schema
+		const exportCategories: ImportCategory[] = categories.map((cat) => ({
+			path: categoryIdToPath.get(cat.id) || [],
+			created_at: cat.created_at,
+			is_asset: cat.is_asset
+		}));
 
-		// Strip IDs from transactions to reduce file size and avoid confusion
-		const exportTransactions = transactions.map((tx) => {
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			const { id, category, ...txData } = tx;
-			return {
-				...txData,
-				category_name: category.name
-			};
-		});
+		// Format tags for export using the new ImportTag schema
+		const exportTags: ImportTag[] = tags.map((tag) => ({
+			name: tag.name,
+			created_at: tag.created_at
+		}));
 
-		const exportData = {
-			transactions: exportTransactions,
-			categories: sortedExportCategories
+		// Format transactions for export using the new ImportTransaction schema
+		const exportTransactions: ImportTransaction[] = transactions.map((tx) => ({
+			category_path: categoryIdToPath.get(tx.category.id) || [tx.category.name],
+			amount: tx.amount,
+			description: tx.description,
+			created_at: tx.created_at,
+			tags: tx.tags.map((t) => t.name)
+		}));
+
+		const exportData: ImportPayload = {
+			categories: exportCategories,
+			tags: exportTags,
+			transactions: exportTransactions
 		};
 
 		const json = JSON.stringify(exportData, null, 2);
@@ -92,7 +106,8 @@ export async function importUserDataFromFile() {
 
 		try {
 			const text = await file.text();
-			await uploadUserData(text);
+			const data: ImportPayload = JSON.parse(text); // Parse here so we can pass typed data to API
+			await uploadUserData(data);
 			await invalidateAll(); // update page to show imported data
 		} catch (err) {
 			console.error('Import error:', err);

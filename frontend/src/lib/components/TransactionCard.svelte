@@ -88,6 +88,18 @@
 		<div class="text-gray-500 text-sm mt-1">
 			{formatTimestampLocalForDisplay(transaction.created_at)}
 		</div>
+
+		{#if transaction.tags && transaction.tags.length > 0}
+			<div class="flex flex-wrap gap-2 mt-3">
+				{#each transaction.tags as tag (tag)}
+					<span
+						class="text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 px-2 py-0.5 rounded-full font-medium"
+					>
+						{tag.name}
+					</span>
+				{/each}
+			</div>
+		{/if}
 	</div>
 
 	{#if showActions}

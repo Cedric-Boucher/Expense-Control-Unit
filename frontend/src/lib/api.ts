@@ -1,7 +1,17 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { auth } from './stores/auth.svelte';
-import type { Transaction, NewTransaction, NewUser, User, Category, NewCategory } from './types';
+import type {
+	Transaction,
+	NewTransaction,
+	NewUser,
+	User,
+	Category,
+	NewCategory,
+	ImportPayload,
+	Tag,
+	NewTag
+} from './types';
 
 const API_BASE = '/api';
 
@@ -118,46 +128,52 @@ export async function getTransaction(id: string): Promise<Transaction> {
 	const res = await fetch(`${API_BASE}/transactions/${id}`, {
 		credentials: 'include'
 	});
+	if (!res.ok) throw new Error('Failed to fetch transaction');
 	return await res.json();
 }
 
 export async function updateTransaction(id: string, data: NewTransaction) {
-	await fetch(`${API_BASE}/transactions/${id}`, {
+	const res = await fetch(`${API_BASE}/transactions/${id}`, {
 		method: 'PUT',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify(data),
 		credentials: 'include'
 	});
+	if (!res.ok) throw new Error('Failed to update transaction');
 }
 
 export async function deleteTransaction(id: string) {
-	await fetch(`${API_BASE}/transactions/${id}`, {
+	const res = await fetch(`${API_BASE}/transactions/${id}`, {
 		method: 'DELETE',
 		credentials: 'include'
 	});
+	if (!res.ok) throw new Error('Failed to delete transaction');
 }
 
 export async function getCategory(id: string): Promise<Category> {
 	const res = await fetch(`${API_BASE}/categories/${id}`, {
 		credentials: 'include'
 	});
+	if (!res.ok) throw new Error('Failed to fetch category');
 	return await res.json();
 }
 
 export async function updateCategory(id: string, data: NewCategory) {
-	await fetch(`${API_BASE}/categories/${id}`, {
+	const res = await fetch(`${API_BASE}/categories/${id}`, {
 		method: 'PUT',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify(data),
 		credentials: 'include'
 	});
+	if (!res.ok) throw new Error('Failed to update category');
 }
 
 export async function deleteCategory(id: string) {
-	await fetch(`${API_BASE}/categories/${id}`, {
+	const res = await fetch(`${API_BASE}/categories/${id}`, {
 		method: 'DELETE',
 		credentials: 'include'
 	});
+	if (!res.ok) throw new Error('Failed to delete category');
 }
 
 export async function getCategoryTransactions(category_id: string): Promise<Transaction[]> {
@@ -168,15 +184,71 @@ export async function getCategoryTransactions(category_id: string): Promise<Tran
 	return await res.json();
 }
 
-export async function uploadUserData(payload: string) {
-	const data = JSON.parse(payload);
+export async function getTags(): Promise<Tag[]> {
+	const res = await fetch(`${API_BASE}/tags`, {
+		credentials: 'include'
+	});
+	if (!res.ok) throw new Error('Failed to fetch tags');
+	return await res.json();
+}
 
+export async function createTag(payload: NewTag): Promise<Tag> {
+	const res = await fetch(`${API_BASE}/tags`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(payload),
+		credentials: 'include'
+	});
+
+	if (!res.ok) {
+		if (res.status === 409) {
+			throw new Error('A tag with this name already exists.');
+		}
+		throw new Error('Failed to create tag');
+	}
+
+	return await res.json();
+}
+
+export async function getTag(id: string): Promise<Tag> {
+	const res = await fetch(`${API_BASE}/tags/${id}`, {
+		credentials: 'include'
+	});
+	if (!res.ok) throw new Error('Failed to fetch tag');
+	return await res.json();
+}
+
+export async function updateTag(id: string, data: NewTag) {
+	const res = await fetch(`${API_BASE}/tags/${id}`, {
+		method: 'PUT',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+
+	if (!res.ok) {
+		if (res.status === 409) {
+			throw new Error('A tag with this name already exists.');
+		}
+		throw new Error('Failed to update tag');
+	}
+}
+
+export async function deleteTag(id: string) {
+	const res = await fetch(`${API_BASE}/tags/${id}`, {
+		method: 'DELETE',
+		credentials: 'include'
+	});
+	if (!res.ok) throw new Error('Failed to delete tag');
+}
+
+export async function uploadUserData(payload: ImportPayload) {
 	const res = await fetch(`${API_BASE}/import`, {
 		method: 'POST',
 		headers: {
 			'content-type': 'application/json'
 		},
-		body: JSON.stringify(data),
+		body: JSON.stringify(payload),
 		credentials: 'include'
 	});
 

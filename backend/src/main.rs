@@ -13,7 +13,7 @@ mod passwords;
 mod time_conversion;
 mod middleware;
 
-use routes::{me, transactions, signup, login, logout, categories, import};
+use routes::{me, transactions, signup, login, logout, categories, import, tags};
 use db::init_db_pool;
 
 static MIGRATOR: Migrator = sqlx::migrate!();
@@ -39,7 +39,8 @@ async fn main() {
         .merge(signup::routes())
         .merge(login::routes())
         .merge(logout::routes())
-        .merge(import::routes());
+        .merge(import::routes())
+        .merge(tags::routes());
 
     let app = Router::new()
         .merge(api_routes)

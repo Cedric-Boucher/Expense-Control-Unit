@@ -1,6 +1,15 @@
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, routing::get, Extension, Json, Router};
 use sqlx::PgPool;
-use crate::{middleware::AuthSession, models::{category::{Category, NewCategory}, transaction::Transaction}, time_conversion::convert_time_to_chrono};
+use std::collections::HashMap;
+use crate::{
+    middleware::AuthSession, 
+    models::{
+        category::{Category, NewCategory}, 
+        tag::Tag, 
+        transaction::Transaction
+    }, 
+    time_conversion::convert_time_to_chrono
+};
 use bigdecimal::ToPrimitive;
 use futures::future::join_all;
 
@@ -16,11 +25,10 @@ async fn list_categories(
 ) -> impl IntoResponse {
     let futures = sqlx::query!(
         r#"
-        SELECT c.id, c.name, c.is_asset, c.created_at, ch.parent_id as "parent_id?"
-        FROM categories c
-        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
-        WHERE c.user_id = $1
-        ORDER BY c.name ASC
+        SELECT id, name, is_asset, parent_id, created_at
+        FROM categories
+        WHERE user_id = $1
+        ORDER BY name ASC
         "#,
         user.id
     )
@@ -45,49 +53,51 @@ pub async fn create_category(
     Extension(pool): Extension<PgPool>,
     AuthSession(user): AuthSession,
     Json(payload): Json<NewCategory>,
-) -> Json<Category> {
-    let mut tx = pool.begin().await.expect("Failed to begin transaction");
+) -> Result<Json<Category>, StatusCode> {
+    let duplicate_check = sqlx::query!(
+        r#"
+        SELECT id FROM categories 
+        WHERE user_id = $1 
+          AND LOWER(name) = LOWER($2) 
+          AND (parent_id IS NOT DISTINCT FROM $3)
+        LIMIT 1
+        "#,
+        user.id,
+        payload.name,
+        payload.parent_id as Option<i32>
+    )
+    .fetch_optional(&pool)
+    .await
+    .expect("Failed to check for duplicate category");
+
+    if duplicate_check.is_some() {
+        return Err(StatusCode::CONFLICT);
+    }
 
     let record = sqlx::query!(
         r#"
-        INSERT INTO categories (user_id, name, is_asset)
-        VALUES ($1, $2, $3)
-        RETURNING id, name, is_asset, created_at
+        INSERT INTO categories (user_id, name, is_asset, parent_id)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, name, is_asset, parent_id, created_at
         "#,
         user.id,
         payload.name,
         payload.is_asset,
+        payload.parent_id as Option<i32>
     )
-    .fetch_one(&mut *tx)
+    .fetch_one(&pool)
     .await
-    .expect("Failed to insert transaction");
-
-    if let Some(parent_id) = payload.parent_id {
-        sqlx::query!(
-            r#"
-            INSERT INTO category_hierarchy (category_id, parent_id, user_id)
-            VALUES ($1, $2, $3)
-            "#,
-            record.id,
-            parent_id,
-            user.id
-        )
-        .execute(&mut *tx)
-        .await
-        .expect("Failed to insert hierarchy link");
-    }
-
-    tx.commit().await.expect("Failed to commit transaction");
+    .expect("Failed to insert category");
 
     let result = Category {
         id: record.id,
         name: record.name,
-        parent_id: payload.parent_id,
+        parent_id: record.parent_id,
         is_asset: record.is_asset,
         created_at: convert_time_to_chrono(record.created_at)
     };
 
-    Json(result)
+    Ok(Json(result))
 }
 
 async fn get_category(
@@ -97,10 +107,9 @@ async fn get_category(
 ) -> impl IntoResponse {
     let existing = sqlx::query!(
         r#"
-        SELECT c.id, c.name, c.is_asset, c.created_at, ch.parent_id as "parent_id?"
-        FROM categories c
-        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
-        WHERE c.id = $1 AND c.user_id = $2
+        SELECT id, name, is_asset, parent_id, created_at
+        FROM categories
+        WHERE id = $1 AND user_id = $2
         "#,
         id,
         user.id
@@ -134,7 +143,30 @@ async fn update_category(
 ) -> impl IntoResponse {
     let mut tx = pool.begin().await.expect("Failed to begin transaction");
 
-    // Check for circular dependencies BEFORE we update anything
+    // 1. Check for duplicates (ignoring this exact category's ID)
+    let duplicate_check = sqlx::query!(
+        r#"
+        SELECT id FROM categories 
+        WHERE user_id = $1 
+          AND LOWER(name) = LOWER($2) 
+          AND (parent_id IS NOT DISTINCT FROM $3)
+          AND id != $4
+        LIMIT 1
+        "#,
+        user.id,
+        payload.name,
+        payload.parent_id as Option<i32>,
+        id
+    )
+    .fetch_optional(&mut *tx)
+    .await
+    .expect("Failed to check for duplicate category");
+
+    if duplicate_check.is_some() {
+        return Err(StatusCode::CONFLICT);
+    }
+
+    // 2. Check for circular dependencies BEFORE we update anything
     if let Some(pid) = payload.parent_id {
         if pid == id {
             // Cannot parent to itself
@@ -144,12 +176,12 @@ async fn update_category(
         let is_descendant = sqlx::query!(
             r#"
             WITH RECURSIVE descendants AS (
-                SELECT category_id FROM category_hierarchy WHERE parent_id = $1
+                SELECT id FROM categories WHERE parent_id = $1
                 UNION ALL
-                SELECT ch.category_id FROM category_hierarchy ch
-                INNER JOIN descendants d ON ch.parent_id = d.category_id
+                SELECT c.id FROM categories c
+                INNER JOIN descendants d ON c.parent_id = d.id
             )
-            SELECT category_id FROM descendants WHERE category_id = $2
+            SELECT id FROM descendants WHERE id = $2
             "#,
             id,
             pid
@@ -164,13 +196,17 @@ async fn update_category(
         }
     }
 
+    // 3. Proceed with update
     let row = sqlx::query!(
         r#"
-        UPDATE categories SET name = $1, is_asset = $2 WHERE id = $3 AND user_id = $4
-        RETURNING id, name, is_asset, created_at
+        UPDATE categories 
+        SET name = $1, is_asset = $2, parent_id = $3 
+        WHERE id = $4 AND user_id = $5
+        RETURNING id, name, is_asset, parent_id, created_at
         "#,
         payload.name,
         payload.is_asset,
+        payload.parent_id as Option<i32>,
         id,
         user.id
     )
@@ -181,42 +217,15 @@ async fn update_category(
     if row.is_none() {
         return Err(StatusCode::NOT_FOUND);
     }
+    
     let row = row.unwrap();
-
-    match payload.parent_id {
-        Some(parent_id) => {
-            sqlx::query!(
-                r#"
-                INSERT INTO category_hierarchy (category_id, parent_id, user_id)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (category_id) 
-                DO UPDATE SET parent_id = EXCLUDED.parent_id
-                "#,
-                id,
-                parent_id,
-                user.id
-            )
-            .execute(&mut *tx)
-            .await
-            .expect("Failed to update hierarchy link");
-        }
-        None => {
-            sqlx::query!(
-                r#"DELETE FROM category_hierarchy WHERE category_id = $1"#,
-                id
-            )
-            .execute(&mut *tx)
-            .await
-            .expect("Failed to delete hierarchy link");
-        }
-    }
 
     tx.commit().await.expect("Failed to commit transaction");
 
     let updated = Category {
         id: row.id,
         name: row.name,
-        parent_id: payload.parent_id,
+        parent_id: row.parent_id,
         is_asset: row.is_asset,
         created_at: convert_time_to_chrono(row.created_at),
     };
@@ -233,7 +242,7 @@ async fn delete_category(
     let has_children = sqlx::query!(
         r#"
         SELECT 1 AS exists 
-        FROM category_hierarchy 
+        FROM categories 
         WHERE parent_id = $1
         LIMIT 1
         "#,
@@ -271,6 +280,38 @@ async fn get_transactions(
     Extension(pool): Extension<PgPool>,
     AuthSession(user): AuthSession
 ) -> impl IntoResponse {
+    let tags_records = sqlx::query!(
+        r#"
+        WITH RECURSIVE category_tree AS (
+            SELECT id FROM categories WHERE id = $1 AND user_id = $2
+            UNION ALL
+            SELECT c.id FROM categories c
+            INNER JOIN category_tree ct ON c.parent_id = ct.id
+        )
+        SELECT tt.transaction_id, t.id, t.name, t.created_at, t.closing_date
+        FROM tags t
+        JOIN transaction_tags tt ON t.id = tt.tag_id
+        JOIN transactions txn ON tt.transaction_id = txn.id
+        WHERE txn.category_id IN (SELECT id FROM category_tree)
+        AND t.user_id = $2
+        "#,
+        id,
+        user.id
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap_or_default();
+
+    let mut tags_by_transaction: HashMap<i32, Vec<Tag>> = HashMap::new();
+    for row in tags_records {
+        tags_by_transaction.entry(row.transaction_id).or_default().push(Tag {
+            id: row.id,
+            name: row.name,
+            created_at: convert_time_to_chrono(row.created_at),
+            closing_date: row.closing_date.map(convert_time_to_chrono)
+        });
+    }
+
     let rows: Vec<Transaction> = sqlx::query!(
         r#"
         WITH RECURSIVE category_tree AS (
@@ -278,17 +319,15 @@ async fn get_transactions(
             SELECT id FROM categories WHERE id = $1 AND user_id = $2
             UNION ALL
             -- Recursive step: find all children of the categories in the tree
-            SELECT ch.category_id
-            FROM category_hierarchy ch
-            INNER JOIN category_tree ct ON ch.parent_id = ct.id
+            SELECT c.id
+            FROM categories c
+            INNER JOIN category_tree ct ON c.parent_id = ct.id
         )
         SELECT
             t.id AS transaction_id, t.description, t.amount, t.created_at AS transaction_created_at,
-            c.id AS category_id, c.name, c.is_asset AS category_is_asset, c.created_at AS category_created_at,
-            ch.parent_id as "parent_id?"
+            c.id AS category_id, c.name, c.is_asset AS category_is_asset, c.parent_id, c.created_at AS category_created_at
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
-        LEFT JOIN category_hierarchy ch ON c.id = ch.category_id
         WHERE c.id IN (SELECT id FROM category_tree)
         AND t.user_id = $2
         ORDER BY t.created_at DESC
@@ -309,6 +348,7 @@ async fn get_transactions(
             is_asset: row.category_is_asset,
             created_at: convert_time_to_chrono(row.category_created_at),
         },
+        tags: tags_by_transaction.remove(&row.transaction_id).unwrap_or_default(),
         description: row.description,
         amount: row.amount.to_f64().unwrap_or(0.0),
         created_at: convert_time_to_chrono(row.transaction_created_at)

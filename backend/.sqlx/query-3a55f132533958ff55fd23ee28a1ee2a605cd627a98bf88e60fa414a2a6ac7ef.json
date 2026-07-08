@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT t.id, t.name, t.created_at, t.closing_date\n        FROM tags t\n        JOIN transaction_tags tt ON t.id = tt.tag_id\n        WHERE tt.transaction_id = $1 AND t.user_id = $2\n        ORDER BY t.name ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "closing_date",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "3a55f132533958ff55fd23ee28a1ee2a605cd627a98bf88e60fa414a2a6ac7ef"
+}

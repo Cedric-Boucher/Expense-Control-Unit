@@ -6,69 +6,34 @@ use crate::{
 };
 use sqlx::PgPool;
 use bigdecimal::{BigDecimal, FromPrimitive};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet};
 
 pub fn routes() -> Router {
     Router::new().route("/import", post(import_data))
 }
 
-/// Validates and sorts categories topologically (parents before children).
-/// Returns an Error if there is a circular dependency or missing parent.
-fn sort_categories_topologically(categories: Vec<ImportCategory>) -> Result<Vec<ImportCategory>, &'static str> {
-    let mut cat_by_name = HashMap::new();
-    let mut in_degree: HashMap<String, usize> = HashMap::new();
-    let mut graph: HashMap<String, Vec<String>> = HashMap::new();
-    let cat_count = categories.len();
+/// Validates and sorts categories by path length.
+/// Returns an Error if a path is empty or a parent path is missing.
+fn validate_and_sort_categories(mut categories: Vec<ImportCategory>) -> Result<Vec<ImportCategory>, &'static str> {
+    categories.sort_by_key(|c| c.path.len());
 
-    // Build the graph and count dependencies
-    for cat in categories {
-        let name = cat.name.clone();
-        let parent_name = cat.parent_name.clone();
+    let mut known_paths: HashSet<Vec<String>> = HashSet::new();
 
-        cat_by_name.insert(name.clone(), cat);
-        in_degree.entry(name.clone()).or_insert(0);
-
-        if let Some(p_name) = parent_name {
-            *in_degree.entry(name.clone()).or_insert(0) += 1;
-            graph.entry(p_name).or_default().push(name);
-        }
-    }
-
-    let mut queue = VecDeque::new();
-
-    // Start with top-level categories (0 dependencies)
-    for (name, &deg) in &in_degree {
-        if deg == 0 {
-            queue.push_back(name.clone());
-        }
-    }
-
-    let mut sorted_categories = Vec::new();
-
-    // Process the queue top-down
-    while let Some(name) = queue.pop_front() {
-        if let Some(cat) = cat_by_name.remove(&name) {
-            sorted_categories.push(cat);
+    for cat in &categories {
+        if cat.path.is_empty() {
+            return Err("Category path cannot be empty.");
         }
 
-        if let Some(children) = graph.get(&name) {
-            for child_name in children {
-                if let Some(deg) = in_degree.get_mut(child_name) {
-                    *deg -= 1; // Parent processed, remove the dependency requirement
-                    if *deg == 0 {
-                        queue.push_back(child_name.clone());
-                    }
-                }
-            }
+        let parent_path = &cat.path[..cat.path.len() - 1];
+        
+        if !parent_path.is_empty() && !known_paths.contains(parent_path) {
+            return Err("Missing parent category in import payload.");
         }
+
+        known_paths.insert(cat.path.clone());
     }
 
-    // Validation: If counts don't match, we mathematically failed to resolve the tree
-    if sorted_categories.len() != cat_count {
-        return Err("Circular dependency or dangling parent reference detected.");
-    }
-
-    Ok(sorted_categories)
+    Ok(categories)
 }
 
 pub async fn import_data(
@@ -76,8 +41,7 @@ pub async fn import_data(
     AuthSession(user): AuthSession,
     Json(payload): Json<ImportPayload>,
 ) -> StatusCode {
-    // Validation (Fails fast before we ever touch the database)
-    let sorted_categories = match sort_categories_topologically(payload.categories) {
+    let sorted_categories = match validate_and_sort_categories(payload.categories) {
         Ok(categories) => categories,
         Err(e) => {
             eprintln!("Import Validation Failed: {}", e);
@@ -90,76 +54,84 @@ pub async fn import_data(
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
     };
 
-    let mut category_map: HashMap<String, i32> = HashMap::new();
+    let mut category_map: HashMap<Vec<String>, i32> = HashMap::new();
 
-    // Insert Categories Safely in Top-Down Order
+    // 1. Insert Categories
     for cat in sorted_categories {
+        let name = match cat.path.last() {
+            Some(n) => n.clone(),
+            None => return StatusCode::BAD_REQUEST,
+        };
+
+        let parent_path = &cat.path[..cat.path.len() - 1];
+        
+        let parent_id = if parent_path.is_empty() {
+            None
+        } else {
+            category_map.get(parent_path).copied()
+        };
+
         let rec = sqlx::query!(
             r#"
-            INSERT INTO categories (user_id, name, created_at, is_asset)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (user_id, name) 
-            DO UPDATE SET name = EXCLUDED.name, is_asset = EXCLUDED.is_asset
+            INSERT INTO categories (user_id, name, created_at, is_asset, parent_id)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id, name, (COALESCE(parent_id, -1))) 
+            DO UPDATE SET is_asset = EXCLUDED.is_asset
             RETURNING id
             "#,
             user.id,
-            cat.name,
+            name,
             convert_chrono_to_time(cat.created_at),
             cat.is_asset,
+            parent_id as Option<i32>
         )
         .fetch_one(&mut *tx)
         .await
         .expect("Failed to insert category");
 
-        let new_id = rec.id;
-
-        // Map Category Name to the newly generated Postgres ID
-        category_map.insert(cat.name.clone(), new_id);
-
-        // Upsert the hierarchy link
-        if let Some(ref p_name) = cat.parent_name {
-            if let Some(&new_pid) = category_map.get(p_name) {
-                sqlx::query!(
-                    r#"
-                    INSERT INTO category_hierarchy (category_id, parent_id, user_id)
-                    VALUES ($1, $2, $3)
-                    ON CONFLICT (category_id) DO UPDATE SET parent_id = EXCLUDED.parent_id
-                    "#,
-                    new_id,
-                    new_pid,
-                    user.id
-                )
-                .execute(&mut *tx)
-                .await
-                .expect("Failed to insert hierarchy link");
-            }
-        } else {
-            // Ensure no hierarchy link exists if the import explicitly sets it to null
-            sqlx::query!(
-                r#"DELETE FROM category_hierarchy WHERE category_id = $1"#,
-                new_id
-            )
-            .execute(&mut *tx)
-            .await
-            .expect("Failed to delete hierarchy link");
-        }
+        category_map.insert(cat.path.clone(), rec.id);
     }
 
-    // Insert Transactions
+    let mut tag_map: HashMap<String, i32> = HashMap::new();
+
+    // 2. Insert Tags
+    for tag in payload.tags {
+        let rec = sqlx::query!(
+            r#"
+            INSERT INTO tags (user_id, name, created_at)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id, name) 
+            DO UPDATE SET name = EXCLUDED.name -- Dummy update to force RETURNING id on conflict
+            RETURNING id
+            "#,
+            user.id,
+            tag.name,
+            convert_chrono_to_time(tag.created_at)
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .expect("Failed to insert tag");
+
+        tag_map.insert(tag.name.clone(), rec.id);
+    }
+
+    // 3. Insert Transactions
     for tx_item in payload.transactions {
-        let category_id = match category_map.get(&tx_item.category_name) {
+        let category_id = match category_map.get(&tx_item.category_path) {
             Some(id) => *id,
             None => {
+                eprintln!("Transaction references an unknown category path: {:?}", tx_item.category_path);
                 return StatusCode::BAD_REQUEST;
             }
         };
 
         let amount = BigDecimal::from_f64(tx_item.amount).unwrap_or(BigDecimal::from(0));
 
-        let _ = sqlx::query!(
+        let tx_record = sqlx::query!(
             r#"
             INSERT INTO transactions (user_id, category_id, description, amount, created_at)
             VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
             "#,
             user.id,
             category_id,
@@ -167,12 +139,51 @@ pub async fn import_data(
             amount,
             convert_chrono_to_time(tx_item.created_at),
         )
-        .execute(&mut *tx)
+        .fetch_one(&mut *tx)
         .await
         .expect("Failed to insert transaction");
+
+        // Process and link tags for this transaction
+        for tag_name in tx_item.tags {
+            let tag_id = match tag_map.get(&tag_name) {
+                Some(&id) => id,
+                None => {
+                    // Fallback: Check if the tag exists in the DB but wasn't in the payload's top-level array
+                    let existing_tag = sqlx::query!(
+                        "SELECT id FROM tags WHERE user_id = $1 AND name = $2 LIMIT 1",
+                        user.id,
+                        tag_name
+                    )
+                    .fetch_optional(&mut *tx)
+                    .await
+                    .expect("Failed to query tag");
+
+                    if let Some(row) = existing_tag {
+                        tag_map.insert(tag_name.clone(), row.id);
+                        row.id
+                    } else {
+                        eprintln!("Transaction references an unknown tag: {}", tag_name);
+                        return StatusCode::BAD_REQUEST;
+                    }
+                }
+            };
+
+            sqlx::query!(
+                r#"
+                INSERT INTO transaction_tags (transaction_id, tag_id, user_id) 
+                VALUES ($1, $2, $3)
+                ON CONFLICT (transaction_id, tag_id) DO NOTHING
+                "#,
+                tx_record.id,
+                tag_id,
+                user.id
+            )
+            .execute(&mut *tx)
+            .await
+            .expect("Failed to link tag");
+        }
     }
 
-    // Commit everything
     if let Err(_) = tx.commit().await {
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
@@ -189,23 +200,26 @@ mod tests {
     // --- Test Helpers ---
 
     /// Quick constructor for ImportCategory to keep tests clean
-    fn make_cat(name: &str, parent: Option<&str>) -> ImportCategory {
+    fn make_cat(path: &[&str]) -> ImportCategory {
         ImportCategory {
-            name: name.to_string(),
+            path: path.iter().map(|s| s.to_string()).collect(),
             created_at: Utc::now(),
-            parent_name: parent.map(|s| s.to_string()),
             is_asset: false,
         }
     }
 
     /// Verifies that a parent appears before its child in the sorted result
-    fn assert_parent_before_child(sorted: &[ImportCategory], parent_name: &str, child_name: &str) {
-        let parent_idx = sorted.iter().position(|c| c.name == parent_name).unwrap();
-        let child_idx = sorted.iter().position(|c| c.name == child_name).unwrap();
+    fn assert_parent_before_child(sorted: &[ImportCategory], parent_path: &[&str], child_path: &[&str]) {
+        let p_vec: Vec<String> = parent_path.iter().map(|s| s.to_string()).collect();
+        let c_vec: Vec<String> = child_path.iter().map(|s| s.to_string()).collect();
+
+        let parent_idx = sorted.iter().position(|c| c.path == p_vec).unwrap();
+        let child_idx = sorted.iter().position(|c| c.path == c_vec).unwrap();
+        
         assert!(
             parent_idx < child_idx,
-            "Expected parent '{}' to appear before child '{}'",
-            parent_name, child_name
+            "Expected parent '{:?}' to appear before child '{:?}'",
+            parent_path, child_path
         );
     }
 
@@ -213,129 +227,83 @@ mod tests {
 
     #[test]
     fn test_empty_list() {
-        let result = sort_categories_topologically(vec![]);
+        let result = validate_and_sort_categories(vec![]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }
 
     #[test]
     fn test_flat_categories() {
-        let input = vec![make_cat("A", None), make_cat("B", None), make_cat("C", None)];
-        let result = sort_categories_topologically(input).unwrap();
+        let input = vec![make_cat(&["A"]), make_cat(&["B"]), make_cat(&["C"])];
+        let result = validate_and_sort_categories(input).unwrap();
         assert_eq!(result.len(), 3);
     }
 
     #[test]
     fn test_simple_tree_already_sorted() {
-        let input = vec![make_cat("Parent", None), make_cat("Child", Some("Parent"))];
-        let result = sort_categories_topologically(input).unwrap();
+        let input = vec![make_cat(&["Parent"]), make_cat(&["Parent", "Child"])];
+        let result = validate_and_sort_categories(input).unwrap();
         assert_eq!(result.len(), 2);
-        assert_parent_before_child(&result, "Parent", "Child");
+        assert_parent_before_child(&result, &["Parent"], &["Parent", "Child"]);
     }
 
     #[test]
     fn test_simple_tree_reversed() {
-        let input = vec![make_cat("Child", Some("Parent")), make_cat("Parent", None)];
-        let result = sort_categories_topologically(input).unwrap();
-        assert_parent_before_child(&result, "Parent", "Child");
+        let input = vec![make_cat(&["Parent", "Child"]), make_cat(&["Parent"])];
+        let result = validate_and_sort_categories(input).unwrap();
+        assert_parent_before_child(&result, &["Parent"], &["Parent", "Child"]);
     }
 
     #[test]
     fn test_deep_hierarchy_shuffled() {
         let input = vec![
-            make_cat("C", Some("B")),
-            make_cat("A", None),
-            make_cat("B", Some("A")),
-            make_cat("D", Some("C")),
+            make_cat(&["A", "B", "C"]),
+            make_cat(&["A"]),
+            make_cat(&["A", "B"]),
+            make_cat(&["A", "B", "C", "D"]),
         ];
-        let result = sort_categories_topologically(input).unwrap();
-        assert_parent_before_child(&result, "A", "B");
-        assert_parent_before_child(&result, "B", "C");
-        assert_parent_before_child(&result, "C", "D");
+        let result = validate_and_sort_categories(input).unwrap();
+        assert_parent_before_child(&result, &["A"], &["A", "B"]);
+        assert_parent_before_child(&result, &["A", "B"], &["A", "B", "C"]);
+        assert_parent_before_child(&result, &["A", "B", "C"], &["A", "B", "C", "D"]);
     }
 
     #[test]
-    fn test_multiple_disconnected_trees() {
+    fn test_duplicate_names_different_paths() {
         let input = vec![
-            make_cat("ChildB", Some("RootB")),
-            make_cat("RootA", None),
-            make_cat("ChildA", Some("RootA")),
-            make_cat("RootB", None),
+            make_cat(&["Auto"]),
+            make_cat(&["Auto", "Gas"]),
+            make_cat(&["Home"]),
+            make_cat(&["Home", "Gas"]),
         ];
-        let result = sort_categories_topologically(input).unwrap();
-        assert_parent_before_child(&result, "RootA", "ChildA");
-        assert_parent_before_child(&result, "RootB", "ChildB");
+        let result = validate_and_sort_categories(input);
+        assert!(result.is_ok(), "Should allow identical child names if paths differ");
     }
 
     // --- 🔴 Error / Validation Paths ---
 
     #[test]
     fn test_missing_parent() {
-        let input = vec![make_cat("Child", Some("Ghost"))];
-        let result = sort_categories_topologically(input);
-        assert!(result.is_err());
+        let input = vec![make_cat(&["Ghost", "Child"])];
+        let result = validate_and_sort_categories(input);
+        assert!(result.is_err(), "Should fail if parent path is not in the list");
     }
 
     #[test]
-    fn test_self_referencing_cycle() {
-        let input = vec![make_cat("A", Some("A"))];
-        let result = sort_categories_topologically(input);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_direct_circular_dependency() {
-        let input = vec![make_cat("A", Some("B")), make_cat("B", Some("A"))];
-        let result = sort_categories_topologically(input);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_deep_circular_dependency() {
+    fn test_deep_tree_missing_middle_node() {
         let input = vec![
-            make_cat("A", Some("C")),
-            make_cat("B", Some("A")),
-            make_cat("C", Some("B")),
+            make_cat(&["A"]),
+            make_cat(&["A", "B"]),
+            make_cat(&["A", "B", "C", "D"]), // ["A", "B", "C"] is missing
         ];
-        let result = sort_categories_topologically(input);
-        assert!(result.is_err());
-    }
-
-    // --- 🟡 Edge Cases ---
-
-    #[test]
-    fn test_duplicate_category_names() {
-        let input = vec![
-            make_cat("A", None),
-            make_cat("A", Some("B")), // Duplicate overwrites in map
-            make_cat("B", None),
-        ];
-        let result = sort_categories_topologically(input);
-        // Because of the overwrite, the total count mapped won't match the input length
-        assert!(result.is_err());
+        let result = validate_and_sort_categories(input);
+        assert!(result.is_err(), "Should fail if a middle node in the hierarchy is missing");
     }
 
     #[test]
-    fn test_multiple_children_one_parent() {
-        let input = vec![
-            make_cat("Child1", Some("A")),
-            make_cat("Child2", Some("A")),
-            make_cat("A", None),
-        ];
-        let result = sort_categories_topologically(input).unwrap();
-        assert_parent_before_child(&result, "A", "Child1");
-        assert_parent_before_child(&result, "A", "Child2");
-    }
-
-    #[test]
-    fn test_deep_tree_missing_leaf() {
-        let input = vec![
-            make_cat("A", None),
-            make_cat("B", Some("A")),
-            make_cat("C", Some("B")),
-            make_cat("E", Some("D")), // D is missing
-        ];
-        let result = sort_categories_topologically(input);
-        assert!(result.is_err());
+    fn test_empty_path() {
+        let input = vec![make_cat(&[])];
+        let result = validate_and_sort_categories(input);
+        assert!(result.is_err(), "Should fail if a path is entirely empty");
     }
 }

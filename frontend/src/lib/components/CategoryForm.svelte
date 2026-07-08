@@ -23,27 +23,52 @@
 	let isAsset = $state(untrack(() => initial.is_asset ?? false));
 	let error = $state('');
 
-	let availableParents = $state<{ id: number; pathName: string }[]>([]);
+	// State to hold all categories and mappings so we can derive data synchronously
+	let allCategories = $state<Category[]>([]);
+	let map = $state(new Map<number, Category>());
+	let invalidIds = new SvelteSet<number>();
 
 	onMount(async () => {
 		const fetched = await getCategories();
-		const map = new Map(fetched.map((c) => [c.id, c]));
+		allCategories = fetched;
+		map = new Map(fetched.map((c) => [c.id, c]));
 
-		const invalidIds = new SvelteSet<number>();
+		const newInvalidIds = new SvelteSet<number>();
 		if (initial.id) {
 			const queue = [initial.id];
 			while (queue.length > 0) {
 				const currentId = queue.shift()!;
-				invalidIds.add(currentId);
+				newInvalidIds.add(currentId);
 
 				const children = fetched.filter((c) => c.parent_id === currentId).map((c) => c.id);
 				queue.push(...children);
 			}
 		}
+		invalidIds = newInvalidIds;
+	});
 
-		const validParents = fetched.filter((c) => !invalidIds.has(c.id));
+	// Reactively compute the normalized name
+	let trimmedName = $derived(name.trim().toLowerCase());
 
-		availableParents = validParents
+	// Reactively filter parents as the user types
+	let availableParents = $derived.by(() => {
+		if (allCategories.length === 0) return [];
+
+		return allCategories
+			.filter((c) => {
+				// 1. Prevent circular dependencies (self and descendants)
+				if (invalidIds.has(c.id)) return false;
+
+				// 2. Hide parents that already have a child with the current name
+				const hasDuplicateChild = allCategories.some(
+					(child) =>
+						child.parent_id === c.id &&
+						child.id !== initial.id && // Ignore self during edits
+						child.name.toLowerCase() === trimmedName
+				);
+
+				return !hasDuplicateChild;
+			})
 			.map((c) => {
 				let path = c.name;
 				let curr = c;
@@ -56,18 +81,44 @@
 			.sort((a, b) => a.pathName.localeCompare(b.pathName));
 	});
 
+	// Check if there's already a top-level category with this name
+	let hasTopLevelDuplicate = $derived(
+		allCategories.some(
+			(c) =>
+				c.parent_id === null && c.id !== initial.id && c.name.toLowerCase() === trimmedName
+		)
+	);
+
+	// Watcher to reset the selected parent if it becomes invalid while typing
+	$effect(() => {
+		if (parentId !== 'none') {
+			const isCurrentlyValid = availableParents.some((p) => p.id === Number(parentId));
+			if (!isCurrentlyValid) {
+				parentId = 'none';
+			}
+		}
+	});
+
 	async function submit() {
 		error = '';
-		const trimmedName = name.trim();
+		const finalName = name.trim();
 
-		if (!trimmedName) {
+		if (!finalName) {
 			error = 'Name is required.';
 			return;
 		}
 
+		const selectedParentId = parentId === 'none' ? null : Number(parentId);
+
+		// Final safety net just in case they manage to bypass the UI
+		if (selectedParentId === null && hasTopLevelDuplicate) {
+			error = 'A top-level category with this name already exists.';
+			return;
+		}
+
 		const payload: NewCategory = {
-			name: trimmedName,
-			parent_id: parentId === 'none' ? null : Number(parentId),
+			name: finalName,
+			parent_id: selectedParentId,
 			is_asset: isAsset
 		};
 
@@ -97,7 +148,10 @@
 			bind:value={parentId}
 			class="w-full p-2 border rounded bg-white dark:bg-gray-800"
 		>
-			<option value="none">-- Top Level (No Parent) --</option>
+			{#if !hasTopLevelDuplicate || parentId === 'none'}
+				<option value="none">-- Top Level (No Parent) --</option>
+			{/if}
+
 			{#each availableParents as parent ((parent.id, parent.pathName))}
 				<option value={parent.id}>{parent.pathName}</option>
 			{/each}
@@ -127,6 +181,6 @@
 	</div>
 
 	{#if error}
-		<p class="text-red-600">{error}</p>
+		<p class="text-red-600 font-medium">{error}</p>
 	{/if}
 </form>

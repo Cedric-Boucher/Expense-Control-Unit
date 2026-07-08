@@ -1,6 +1,19 @@
+export type Tag = {
+	id: number;
+	name: string;
+	created_at: string;
+	closing_date: string | null;
+};
+
+export type NewTag = {
+	name: string;
+	closing_date?: string | null;
+};
+
 export type Transaction = {
 	id: number;
 	category: Category;
+	tags: Tag[];
 	description: string;
 	amount: number;
 	created_at: string;
@@ -9,6 +22,7 @@ export type Transaction = {
 export type NewTransaction = {
 	description: string;
 	category_id: number;
+	tag_ids?: number[];
 	amount: number;
 	created_at?: string;
 };
@@ -41,4 +55,30 @@ export type NewCategory = {
 
 export type CategoryNode = Category & {
 	children: CategoryNode[];
+};
+
+export type ImportCategory = {
+	path: string[];
+	created_at: string;
+	is_asset: boolean;
+};
+
+export type ImportTag = {
+	name: string;
+	created_at: string;
+	closing_date?: string | null;
+};
+
+export type ImportTransaction = {
+	category_path: string[];
+	amount: number;
+	description: string;
+	created_at: string;
+	tags?: string[];
+};
+
+export type ImportPayload = {
+	categories: ImportCategory[];
+	tags?: ImportTag[];
+	transactions: ImportTransaction[];
 };

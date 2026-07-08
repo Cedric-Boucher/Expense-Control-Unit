@@ -112,10 +112,16 @@
 							Categories
 						</button>
 						<button
-							onclick={() => handleNav('/summary')}
-							class={navButtonClasses('/summary')}
+							onclick={() => handleNav('/tags')}
+							class={navButtonClasses('/tags')}
 						>
-							Summary
+							Tags
+						</button>
+						<button
+							onclick={() => handleNav('/category_summary')}
+							class={navButtonClasses('/category_summary')}
+						>
+							Category Summary
 						</button>
 						<button
 							onclick={() => handleNav('/assets')}
@@ -236,8 +242,14 @@
 				>
 					Categories
 				</button>
-				<button onclick={() => handleNav('/summary')} class={navButtonClasses('/summary')}>
-					Summary
+				<button onclick={() => handleNav('/tags')} class={navButtonClasses('/tags')}>
+					Tags
+				</button>
+				<button
+					onclick={() => handleNav('/category_summary')}
+					class={navButtonClasses('/category_summary')}
+				>
+					Category Summary
 				</button>
 				<button onclick={() => handleNav('/assets')} class={navButtonClasses('/assets')}>
 					Assets

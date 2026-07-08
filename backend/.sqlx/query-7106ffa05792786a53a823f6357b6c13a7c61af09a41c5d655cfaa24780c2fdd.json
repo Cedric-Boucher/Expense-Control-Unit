@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO categories (user_id, name, is_asset, parent_id)\n        VALUES ($1, $2, $3, $4)\n        RETURNING id, name, is_asset, parent_id, created_at\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "is_asset",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "parent_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Bool",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "7106ffa05792786a53a823f6357b6c13a7c61af09a41c5d655cfaa24780c2fdd"
+}
