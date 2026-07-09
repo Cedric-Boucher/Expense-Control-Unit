@@ -28,6 +28,9 @@
 	let map = $state(new Map<number, Category>());
 	let invalidIds = new SvelteSet<number>();
 
+	// Guard flag to prevent the $effect from wiping data before the API fetch completes
+	let isLoaded = $state(false);
+
 	onMount(async () => {
 		const fetched = await getCategories();
 		allCategories = fetched;
@@ -45,6 +48,7 @@
 			}
 		}
 		invalidIds = newInvalidIds;
+		isLoaded = true; // Mark as loaded so the $effect can safely evaluate
 	});
 
 	// Reactively compute the normalized name
@@ -91,6 +95,8 @@
 
 	// Watcher to reset the selected parent if it becomes invalid while typing
 	$effect(() => {
+		if (!isLoaded) return; // Guard: Do nothing until data has successfully loaded
+
 		if (parentId !== 'none') {
 			const isCurrentlyValid = availableParents.some((p) => p.id === Number(parentId));
 			if (!isCurrentlyValid) {
