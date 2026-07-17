@@ -1,14 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getTransaction } from '$lib/api';
 	import { goto } from '$app/navigation';
 	import TransactionForm from '$lib/components/TransactionForm.svelte';
-	import type { NewTransaction, Transaction } from '$lib/types';
+	import type { NewTransaction } from '$lib/types';
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
-	import { useUpdateTransaction } from '$lib/queries';
-
-	let transaction = $state<Transaction | null>(null);
+	import { useUpdateTransaction, useAppData } from '$lib/queries';
 
 	let id = $derived(page.params.id);
 	let redirectTo = $derived(
@@ -16,23 +13,15 @@
 	);
 
 	const updateTx = useUpdateTransaction();
+	const appData = useAppData();
+
+	let transaction = $derived(appData.data?.transactions.find((t) => String(t.id) === id) || null);
 
 	$effect(() => {
-		if (id) {
-			loadData(id);
-		} else {
-			if (redirectTo) goto(resolve(redirectTo));
+		if (!id && redirectTo) {
+			goto(resolve(redirectTo));
 		}
 	});
-
-	async function loadData(currentId: string) {
-		transaction = null;
-		try {
-			transaction = await getTransaction(currentId);
-		} catch (e) {
-			console.error('Failed to load transaction:', e);
-		}
-	}
 
 	async function handleUpdate(data: NewTransaction) {
 		if (id) {
@@ -46,7 +35,11 @@
 	}
 </script>
 
-{#if transaction}
+{#if appData.isPending}
+	<p>Loading...</p>
+{:else if appData.isError}
+	<p class="text-red-600">Failed to load transaction data.</p>
+{:else if transaction}
 	<h1 class="text-2xl font-bold mb-4">Edit Transaction</h1>
 	<TransactionForm
 		initial={transaction}
@@ -56,5 +49,5 @@
 		showCancel={true}
 	/>
 {:else}
-	<p>Loading...</p>
+	<p class="text-gray-500 italic">Transaction not found.</p>
 {/if}

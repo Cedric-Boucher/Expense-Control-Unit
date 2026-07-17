@@ -1,17 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getTransaction } from '$lib/api';
 	import { goto } from '$app/navigation';
-	import type { Transaction } from '$lib/types';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
-	import { useDeleteTransaction } from '$lib/queries';
+	import { useDeleteTransaction, useAppData } from '$lib/queries';
 
-	let transaction = $state<Transaction | null>(null);
 	let error = $state('');
-	let loading = $state(true);
 
 	let id = $derived(page.params.id);
 	let redirectTo = $derived(
@@ -19,30 +15,18 @@
 	);
 
 	const deleteTx = useDeleteTransaction();
+	const appData = useAppData();
+
+	let transaction = $derived(appData.data?.transactions.find((t) => String(t.id) === id) || null);
 
 	$effect(() => {
-		if (id) {
-			loadData(id);
-		} else {
-			if (redirectTo) goto(resolve(redirectTo));
+		if (!id && redirectTo) {
+			goto(resolve(redirectTo));
 		}
 	});
 
-	async function loadData(currentId: string) {
-		loading = true;
-		error = '';
-
-		try {
-			transaction = await getTransaction(currentId);
-		} catch (e) {
-			error = 'Failed to load transaction.';
-			console.error(e);
-		} finally {
-			loading = false;
-		}
-	}
-
 	async function confirmDelete() {
+		error = '';
 		try {
 			if (id) {
 				await deleteTx.mutateAsync(id);
@@ -59,15 +43,19 @@
 	}
 </script>
 
-{#if loading}
+{#if appData.isPending}
 	<p>Loading...</p>
-{:else if error}
-	<p class="text-red-600">{error}</p>
+{:else if appData.isError}
+	<p class="text-red-600">Failed to load transaction data.</p>
 {:else if transaction}
 	<h1 class="text-2xl font-bold mb-4">Delete Transaction</h1>
 	<p class="mb-2">Are you sure you want to delete the following transaction?</p>
 
 	<TransactionCard {transaction} showActions={false} />
+
+	{#if error}
+		<p class="text-red-600 mt-2">{error}</p>
+	{/if}
 
 	<div class="flex space-x-4 mt-4">
 		<AsyncButton

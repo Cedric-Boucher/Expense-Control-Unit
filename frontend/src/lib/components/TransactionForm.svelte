@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { getCategories, getTags, createTag } from '$lib/api';
-	import type { Category, NewTransaction, Transaction, Tag } from '$lib/types';
+	import { createTag } from '$lib/api';
+	import type { Category, NewTransaction, Transaction } from '$lib/types';
 	import { formatTimestampLocal } from '$lib/utils';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
+	import { useAppData } from '$lib/queries';
 
 	let {
 		initial = {},
@@ -19,6 +20,8 @@
 		showCancel?: boolean;
 	} = $props();
 
+	const appData = useAppData();
+
 	let description = $state(untrack(() => initial.description ?? ''));
 	let amount = $state(untrack(() => formatNumberString(initial.amount?.toString() ?? '')));
 
@@ -32,20 +35,65 @@
 
 	type CategoryWithPath = Category & { pathName?: string; is_asset_lineage?: boolean };
 
-	let categories = $state<CategoryWithPath[]>([]);
-	let inputValue = $state('');
-	let selectedCategory = $state<CategoryWithPath | null>(null);
+	// Initial state setup for category
+	let inputValue = $state(untrack(() => initial.category?.name || ''));
+	let selectedCategory = $state<CategoryWithPath | null>(
+		untrack(() => (initial.category ? (initial.category as CategoryWithPath) : null))
+	);
+
 	let showDropdown = $state(false);
 	let error = $state('');
 	let categoryContainer: HTMLDivElement | undefined = $state();
 
+	// Derive available tags directly from cached app data
+	let availableTags = $derived(appData.data?.tags ?? []);
+
+	// Derive and enrich categories with their parent path hierarchy
+	let enrichedCategories = $derived.by(() => {
+		if (!appData.data?.categories) return [];
+		const cats = appData.data.categories;
+		const map = new Map(cats.map((c) => [c.id, c]));
+
+		return cats.map((c) => {
+			let path = c.name;
+			let curr = c;
+			let is_asset_lineage = c.is_asset;
+
+			while (curr.parent_id && map.has(curr.parent_id)) {
+				curr = map.get(curr.parent_id)!;
+				path = curr.name + ' / ' + path;
+				if (curr.is_asset) {
+					is_asset_lineage = true;
+				}
+			}
+			return { ...c, pathName: path, is_asset_lineage };
+		});
+	});
+
 	let filtered = $derived(
-		categories.filter((cat) =>
+		enrichedCategories.filter((cat) =>
 			(cat.pathName || cat.name).toLowerCase().includes(inputValue.toLowerCase())
 		)
 	);
 
-	let availableTags = $state<Tag[]>([]);
+	// Enrich the initially selected category when the cached data becomes available
+	let isCategoryEnriched = $state(false);
+	$effect(() => {
+		if (!isCategoryEnriched && enrichedCategories.length > 0) {
+			if (selectedCategory && initial.category) {
+				const initCat = enrichedCategories.find((c) => c.id === selectedCategory?.id);
+				if (initCat) {
+					selectedCategory = initCat;
+					// Only update the input if the user hasn't manually started changing it
+					if (inputValue === initial.category.name) {
+						inputValue = initCat.pathName || initCat.name;
+					}
+				}
+			}
+			isCategoryEnriched = true;
+		}
+	});
+
 	let selectedTags = $state<{ id?: number; name: string }[]>(
 		untrack(() => (initial.tags ? initial.tags.map((t) => ({ id: t.id, name: t.name })) : []))
 	);
@@ -84,43 +132,6 @@
 	}
 
 	onMount(() => {
-		async function fetchInitialData() {
-			try {
-				const [catsResult, tagsResult] = await Promise.all([getCategories(), getTags()]);
-
-				// Map Categories
-				const map = new Map(catsResult.map((c) => [c.id, c]));
-				const enriched = catsResult.map((c) => {
-					let path = c.name;
-					let curr = c;
-					let is_asset_lineage = c.is_asset;
-
-					while (curr.parent_id && map.has(curr.parent_id)) {
-						curr = map.get(curr.parent_id)!;
-						path = curr.name + ' / ' + path;
-						if (curr.is_asset) {
-							is_asset_lineage = true;
-						}
-					}
-					return { ...c, pathName: path, is_asset_lineage };
-				});
-
-				categories = enriched;
-				availableTags = tagsResult;
-
-				if (initial.category) {
-					const initCat = enriched.find((c) => c.id === initial.category?.id);
-					// Use the enriched category so we have is_asset_lineage
-					selectedCategory = initCat || (initial.category as CategoryWithPath);
-					inputValue = initCat?.pathName || initial.category.name;
-				}
-			} catch (err) {
-				console.error('Failed to load initial form data:', err);
-			}
-		}
-
-		fetchInitialData();
-
 		if (!hasInitialTimestamp) {
 			const updateTime = () => {
 				if (!timestampTouched) {
@@ -295,17 +306,25 @@
 			<ul
 				class="absolute z-10 bg-white dark:bg-gray-800 border w-fit mt-1 max-h-60 overflow-auto shadow rounded"
 			>
-				{#each filtered as category (category.id)}
-					<li class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-950 cursor-pointer">
-						<button
-							type="button"
-							class="w-full text-left"
-							onclick={() => handleSelect(category)}>{category.pathName}</button
-						>
+				{#if appData.isPending}
+					<li class="px-3 py-2 text-gray-500 dark:text-gray-300">
+						Loading categories...
 					</li>
-				{/each}
-				{#if filtered.length === 0}
-					<li class="px-3 py-2 text-gray-500 dark:text-gray-300">No matches found</li>
+				{:else}
+					{#each filtered as category (category.id)}
+						<li
+							class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-950 cursor-pointer"
+						>
+							<button
+								type="button"
+								class="w-full text-left"
+								onclick={() => handleSelect(category)}>{category.pathName}</button
+							>
+						</li>
+					{/each}
+					{#if filtered.length === 0}
+						<li class="px-3 py-2 text-gray-500 dark:text-gray-300">No matches found</li>
+					{/if}
 				{/if}
 			</ul>
 		{/if}
