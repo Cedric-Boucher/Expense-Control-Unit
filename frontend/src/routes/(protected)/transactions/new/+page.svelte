@@ -1,12 +1,14 @@
 <script lang="ts">
 	import TransactionForm from '$lib/components/TransactionForm.svelte';
-	import { createTransaction } from '$lib/api';
 	import { goto } from '$app/navigation';
 	import type { NewTransaction } from '$lib/types';
 	import { resolve } from '$app/paths';
+	import { useCreateTransaction } from '$lib/queries';
+
+	const createTx = useCreateTransaction();
 
 	async function handleCreate(payload: NewTransaction) {
-		await createTransaction(payload);
+		await createTx.mutateAsync(payload);
 		await goto(resolve('/transactions'));
 	}
 

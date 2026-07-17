@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getTransaction, deleteTransaction } from '$lib/api';
+	import { getTransaction } from '$lib/api';
 	import { goto } from '$app/navigation';
 	import type { Transaction } from '$lib/types';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
+	import { useDeleteTransaction } from '$lib/queries';
 
 	let transaction = $state<Transaction | null>(null);
 	let error = $state('');
@@ -16,6 +17,8 @@
 	let redirectTo = $derived(
 		(page.url.searchParams.get('redirectTo') ?? '/transactions') as Pathname
 	);
+
+	const deleteTx = useDeleteTransaction();
 
 	$effect(() => {
 		if (id) {
@@ -42,7 +45,7 @@
 	async function confirmDelete() {
 		try {
 			if (id) {
-				await deleteTransaction(id);
+				await deleteTx.mutateAsync(id);
 			}
 			await goto(resolve(redirectTo));
 		} catch (e) {

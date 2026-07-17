@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getTransaction, updateTransaction } from '$lib/api';
+	import { getTransaction } from '$lib/api';
 	import { goto } from '$app/navigation';
 	import TransactionForm from '$lib/components/TransactionForm.svelte';
 	import type { NewTransaction, Transaction } from '$lib/types';
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
+	import { useUpdateTransaction } from '$lib/queries';
 
 	let transaction = $state<Transaction | null>(null);
 
@@ -13,6 +14,8 @@
 	let redirectTo = $derived(
 		(page.url.searchParams.get('redirectTo') ?? '/transactions') as Pathname
 	);
+
+	const updateTx = useUpdateTransaction();
 
 	$effect(() => {
 		if (id) {
@@ -33,7 +36,7 @@
 
 	async function handleUpdate(data: NewTransaction) {
 		if (id) {
-			await updateTransaction(id, data);
+			await updateTx.mutateAsync({ id, data });
 		}
 		await goto(resolve(redirectTo));
 	}
