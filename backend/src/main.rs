@@ -44,6 +44,7 @@ async fn main() {
 
     let app = Router::new()
         .merge(api_routes)
+        .layer(axum::middleware::from_fn(crate::middleware::etag_middleware))
         .layer(Extension(db))
         .layer(CookieManagerLayer::new())
         .layer(

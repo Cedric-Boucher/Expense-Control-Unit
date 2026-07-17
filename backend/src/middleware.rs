@@ -1,9 +1,72 @@
-use axum::{extract::FromRequestParts, http::{StatusCode, request::Parts}, Extension};
+use axum::{
+    body::{to_bytes, Body},
+    extract::{FromRequestParts, Request},
+    http::{header, request::Parts, Method, StatusCode},
+    middleware::Next,
+    response::{IntoResponse, Response},
+    Extension,
+};
 use axum_extra::extract::cookie::CookieJar;
 use sqlx::PgPool;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use uuid::Uuid;
 
 use crate::{models::user::User, time_conversion::convert_time_to_chrono};
+
+pub async fn etag_middleware(req: Request, next: Next) -> Response {
+    if req.method() != Method::GET {
+        return next.run(req).await;
+    }
+
+    let if_none_match = req.headers().get(header::IF_NONE_MATCH).cloned();
+
+    let res = next.run(req).await;
+
+    if res.status() != StatusCode::OK {
+        return res;
+    }
+
+    let (mut parts, body) = res.into_parts();
+
+    let bytes = match to_bytes(body, 10 * 1024 * 1024).await {
+        Ok(b) => b,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
+    let mut hasher = DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    let etag = format!("\"{:x}\"", hasher.finish());
+
+    parts.headers.insert(
+        header::CACHE_CONTROL,
+        header::HeaderValue::from_static("no-cache"),
+    );
+
+    if let Some(inm) = if_none_match {
+        if let Ok(inm_str) = inm.to_str() {
+            if inm_str.contains(&etag) {
+                let mut not_modified = Response::builder()
+                    .status(StatusCode::NOT_MODIFIED)
+                    .body(Body::empty())
+                    .unwrap();
+
+                not_modified
+                    .headers_mut()
+                    .insert(header::ETAG, etag.parse().unwrap());
+                not_modified.headers_mut().insert(
+                    header::CACHE_CONTROL,
+                    header::HeaderValue::from_static("no-cache"),
+                );
+
+                return not_modified;
+            }
+        }
+    }
+
+    parts.headers.insert(header::ETAG, etag.parse().unwrap());
+    Response::from_parts(parts, Body::from(bytes))
+}
+
 
 pub struct AuthSession(pub User);
 
