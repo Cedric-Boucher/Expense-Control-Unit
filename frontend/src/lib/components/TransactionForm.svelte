@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { createTag } from '$lib/api';
 	import type { Category, NewTransaction, Transaction } from '$lib/types';
 	import { formatTimestampLocal } from '$lib/utils';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
-	import { useAppData } from '$lib/queries';
+	import { useAppData, useCreateTag } from '$lib/queries';
 
 	let {
 		initial = {},
@@ -21,6 +20,7 @@
 	} = $props();
 
 	const appData = useAppData();
+	const createTagMutation = useCreateTag();
 
 	let description = $state(untrack(() => initial.description ?? ''));
 	let amount = $state(untrack(() => formatNumberString(initial.amount?.toString() ?? '')));
@@ -216,7 +216,7 @@
 				if (t.id) {
 					tag_ids.push(t.id);
 				} else {
-					const newTag = await createTag({ name: t.name });
+					const newTag = await createTagMutation.mutateAsync({ name: t.name });
 					tag_ids.push(newTag.id);
 				}
 			}
