@@ -5,9 +5,12 @@ import {
 	getTags,
 	createTransaction,
 	updateTransaction,
-	deleteTransaction
+	deleteTransaction,
+	createCategory,
+	updateCategory,
+	deleteCategory
 } from '$lib/api';
-import type { Transaction, Category, Tag, NewTransaction } from '$lib/types';
+import type { Transaction, Category, Tag, NewTransaction, NewCategory } from '$lib/types';
 
 export interface AppData {
 	transactions: Transaction[];
@@ -30,7 +33,7 @@ export function useAppData() {
 	}));
 }
 
-// --- Mutations ---
+// --- Transaction Mutations ---
 
 export function useCreateTransaction() {
 	const queryClient = useQueryClient();
@@ -61,6 +64,41 @@ export function useDeleteTransaction() {
 
 	return createMutation(() => ({
 		mutationFn: (id: string) => deleteTransaction(id),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['appData'] });
+		}
+	}));
+}
+
+// --- Category Mutations ---
+
+export function useCreateCategory() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: (payload: NewCategory) => createCategory(payload),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['appData'] });
+		}
+	}));
+}
+
+export function useUpdateCategory() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: ({ id, data }: { id: string; data: NewCategory }) => updateCategory(id, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['appData'] });
+		}
+	}));
+}
+
+export function useDeleteCategory() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: (id: string) => deleteCategory(id),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['appData'] });
 		}

@@ -1,19 +1,17 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getCategory, deleteCategory, getCategoryTransactions, getCategories } from '$lib/api';
 	import { goto } from '$app/navigation';
-	import type { Category, Transaction } from '$lib/types';
+	import { useAppData, useDeleteCategory } from '$lib/queries';
 	import CategoryCard from '$lib/components/CategoryCard.svelte';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
-	let category = $state<Category | null>(null);
-	let transactions = $state<Transaction[]>([]);
-	let childCategories = $state<Category[]>([]);
+	const appData = useAppData();
+	const deleteCategoryMutation = useDeleteCategory();
+
 	let error = $state('');
-	let loading = $state(true);
 
 	let id = $derived(page.params.id);
 	let numericId = $derived(Number(id));
@@ -21,47 +19,33 @@
 		(page.url.searchParams.get('redirectTo') ?? '/categories') as Pathname
 	);
 
+	let category = $derived(appData.data?.categories.find((c) => c.id === numericId) ?? null);
+
+	// Find all categories that have this one as a direct parent
+	let childCategories = $derived(
+		appData.data?.categories.filter((c) => c.parent_id === numericId) ?? []
+	);
+
+	// Find any transactions associated with this category
+	let transactions = $derived(
+		appData.data?.transactions.filter((t) => t.category.id === numericId) ?? []
+	);
+
 	$effect(() => {
-		if (id) {
-			loadData(id, numericId);
-		} else {
+		if (!id) {
 			if (redirectTo) goto(resolve(redirectTo));
 		}
 	});
 
-	async function loadData(currentId: string, currentNumericId: number) {
-		loading = true;
-		error = ''; // Clear any previous errors when loading new data
-
-		try {
-			// Fetch everything concurrently for better performance
-			const [fetchedCategory, fetchedTransactions, allCategories] = await Promise.all([
-				getCategory(currentId),
-				getCategoryTransactions(currentId),
-				getCategories()
-			]);
-
-			category = fetchedCategory;
-			transactions = fetchedTransactions;
-
-			// Find all categories that have this one as a direct parent
-			childCategories = allCategories.filter((c) => c.parent_id === currentNumericId);
-		} catch (e) {
-			error = 'Failed to load category data.';
-			console.error(e);
-		} finally {
-			loading = false;
-		}
-	}
-
 	async function confirmDelete() {
+		error = '';
 		try {
 			if (id) {
-				await deleteCategory(id);
+				await deleteCategoryMutation.mutateAsync(id);
 			}
 			await goto(resolve(redirectTo));
 		} catch (e) {
-			error = 'Failed to delete category.';
+			error = e instanceof Error ? e.message : 'Failed to delete category.';
 			console.error(e);
 		}
 	}
@@ -71,15 +55,19 @@
 	}
 </script>
 
-{#if loading}
+{#if appData.isPending}
 	<p>Loading...</p>
-{:else if error}
-	<p class="text-red-600">{error}</p>
+{:else if appData.isError}
+	<p class="text-red-600">Failed to load category data.</p>
 {:else if category}
 	<h1 class="text-2xl font-bold mb-4">Delete Category</h1>
 
+	{#if error}
+		<p class="text-red-600 mb-4">{error}</p>
+	{/if}
+
 	<p class="mb-2">Are you sure you want to delete the following category?</p>
-	<CategoryCard {category} showActions={false} />
+	<CategoryCard {category} allCategories={appData.data?.categories ?? []} showActions={false} />
 
 	{#if childCategories.length > 0}
 		<p class="mt-4 text-red-600">
@@ -89,7 +77,11 @@
 		</p>
 		<ul class="space-y-2 mt-2">
 			{#each childCategories as child (child.id)}
-				<CategoryCard category={child} showActions={true} />
+				<CategoryCard
+					category={child}
+					allCategories={appData.data?.categories ?? []}
+					showActions={true}
+				/>
 			{/each}
 		</ul>
 		<p class="mt-4 mb-6 text-sm text-gray-700 dark:text-gray-300">

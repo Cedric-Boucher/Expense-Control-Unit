@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount, untrack } from 'svelte';
-	import { getCategories } from '$lib/api';
+	import { untrack } from 'svelte';
 	import type { Category, NewCategory } from '$lib/types';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
+	import { useAppData } from '$lib/queries';
 
 	let {
 		initial = {},
@@ -19,37 +19,36 @@
 		showCancel?: boolean;
 	} = $props();
 
+	const appData = useAppData();
+
 	let name = $state(untrack(() => initial.name ?? ''));
 	let parentId = $state<number | string>(untrack(() => initial.parent_id ?? 'none'));
 	let isAsset = $state(untrack(() => initial.is_asset ?? false));
 	let error = $state('');
 
-	// State to hold all categories and mappings so we can derive data synchronously
-	let allCategories = $state<Category[]>([]);
-	let map = $state(new Map<number, Category>());
-	let invalidIds = new SvelteSet<number>();
+	// Derive all categories and their mapping directly from the query cache
+	let allCategories = $derived(appData.data?.categories ?? []);
+	let map = $derived(new Map(allCategories.map((c) => [c.id, c])));
 
-	// Guard flag to prevent the $effect from wiping data before the API fetch completes
-	let isLoaded = $state(false);
+	// Use a single SvelteSet instance and mutate it with set methods
+	const invalidIds = new SvelteSet<number>();
 
-	onMount(async () => {
-		const fetched = await getCategories();
-		allCategories = fetched;
-		map = new Map(fetched.map((c) => [c.id, c]));
+	// Compute the invalid descendants whenever the categories list updates
+	$effect(() => {
+		invalidIds.clear();
 
-		const newInvalidIds = new SvelteSet<number>();
-		if (initial.id) {
+		if (initial.id && allCategories.length > 0) {
 			const queue = [initial.id];
 			while (queue.length > 0) {
 				const currentId = queue.shift()!;
-				newInvalidIds.add(currentId);
+				invalidIds.add(currentId);
 
-				const children = fetched.filter((c) => c.parent_id === currentId).map((c) => c.id);
+				const children = allCategories
+					.filter((c) => c.parent_id === currentId)
+					.map((c) => c.id);
 				queue.push(...children);
 			}
 		}
-		invalidIds = newInvalidIds;
-		isLoaded = true; // Mark as loaded so the $effect can safely evaluate
 	});
 
 	// Reactively compute the normalized name
@@ -96,7 +95,7 @@
 
 	// Watcher to reset the selected parent if it becomes invalid while typing
 	$effect(() => {
-		if (!isLoaded) return; // Guard: Do nothing until data has successfully loaded
+		if (appData.isPending) return; // Guard: Do nothing until data has successfully loaded
 
 		if (parentId !== 'none') {
 			const isCurrentlyValid = availableParents.some((p) => p.id === Number(parentId));
@@ -154,14 +153,19 @@
 			id="parent"
 			bind:value={parentId}
 			class="w-full p-2 border rounded bg-white dark:bg-gray-800"
+			disabled={appData.isPending}
 		>
 			{#if !hasTopLevelDuplicate || parentId === 'none'}
 				<option value="none">-- Top Level (No Parent) --</option>
 			{/if}
 
-			{#each availableParents as parent ((parent.id, parent.pathName))}
-				<option value={parent.id}>{parent.pathName}</option>
-			{/each}
+			{#if appData.isPending}
+				<option value="none">Loading categories...</option>
+			{:else}
+				{#each availableParents as parent ((parent.id, parent.pathName))}
+					<option value={parent.id}>{parent.pathName}</option>
+				{/each}
+			{/if}
 		</select>
 	</div>
 

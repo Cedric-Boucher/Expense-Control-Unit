@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import type { Category } from '$lib/types';
 	import CategoryCard from '$lib/components/CategoryCard.svelte';
 	import { resolve } from '$app/paths';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
+	import { useAppData } from '$lib/queries';
 
-	let { data }: { data: { categories: Category[] } } = $props();
+	const appData = useAppData();
+
+	let categories = $derived(appData.data?.categories ?? []);
 
 	const BATCH_SIZE = 50;
 	const ESTIMATED_ITEM_HEIGHT = 80;
@@ -14,14 +16,14 @@
 	let limit = $state(BATCH_SIZE);
 
 	function loadMore() {
-		if (limit < data.categories.length) {
+		if (limit < categories.length) {
 			limit += BATCH_SIZE;
 			setTimeout(loadMore, 0);
 		}
 	}
 
 	$effect(() => {
-		if (data.categories) {
+		if (categories.length > 0) {
 			untrack(() => {
 				limit = BATCH_SIZE;
 				if (typeof window !== 'undefined') window.scrollTo(0, 0);
@@ -30,8 +32,8 @@
 		}
 	});
 
-	let visibleCategories = $derived(data.categories.slice(0, limit));
-	let remainingCount = $derived(Math.max(0, data.categories.length - limit));
+	let visibleCategories = $derived(categories.slice(0, limit));
+	let remainingCount = $derived(Math.max(0, categories.length - limit));
 	let phantomHeight = $derived(remainingCount * ESTIMATED_ITEM_HEIGHT);
 </script>
 
@@ -46,10 +48,14 @@
 	</AsyncButton>
 </div>
 
-{#if visibleCategories.length}
+{#if appData.isPending}
+	<p>Loading categories...</p>
+{:else if appData.isError}
+	<p class="text-red-600">Failed to load categories.</p>
+{:else if visibleCategories.length}
 	<ul class="space-y-4">
 		{#each visibleCategories as category (category.id)}
-			<CategoryCard {category} allCategories={data.categories} showActions={true} />
+			<CategoryCard {category} allCategories={categories} showActions={true} />
 		{/each}
 
 		<div style="height: {phantomHeight}px; width: 100%"></div>

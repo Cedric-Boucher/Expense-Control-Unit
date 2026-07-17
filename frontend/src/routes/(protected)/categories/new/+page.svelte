@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { createCategory } from '$lib/api';
+	import { useCreateCategory } from '$lib/queries';
 	import CategoryForm from '$lib/components/CategoryForm.svelte';
 	import type { NewCategory } from '$lib/types';
 
+	const createCategory = useCreateCategory();
+
 	async function handleSubmit(data: NewCategory) {
-		await createCategory(data);
+		await createCategory.mutateAsync(data);
 		await goto(resolve('/categories'));
 	}
 </script>
