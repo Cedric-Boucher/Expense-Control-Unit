@@ -397,8 +397,8 @@
 		<div
 			class="p-3 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm rounded border border-yellow-200 dark:border-yellow-800/50 shadow-sm transition-all duration-300"
 		>
-			⚠️ <strong>Missing Asset Tag:</strong> This category tracks assets. You should add a tag
-			to link this transaction to its specific asset.
+			⚠️ <strong>Missing Asset Tag:</strong> This category tracks assets. You should add a tag to
+			link this transaction to its specific asset.
 		</div>
 	{/if}
 

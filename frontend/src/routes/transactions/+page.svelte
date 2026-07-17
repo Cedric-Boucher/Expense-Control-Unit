@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import type { Transaction, Category, Tag } from '$lib/types';
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
+	import { useAppData } from '$lib/queries';
 
-	let { data }: { data: { transactions: Transaction[]; categories: Category[]; tags: Tag[] } } =
-		$props();
+	// 1. Initialize TanStack Query
+	const appQuery = useAppData();
+
+	// Safely unwrap data with fallbacks for the initial loading state
+	const rawCategories = $derived(appQuery.data?.categories ?? []);
+	const rawTags = $derived(appQuery.data?.tags ?? []);
+	const rawTransactions = $derived(appQuery.data?.transactions ?? []);
 
 	// --- Category Logic ---
-	let categoryMap = $derived(new Map(data.categories.map((c) => [c.id, c])));
+	let categoryMap = $derived(new Map(rawCategories.map((c) => [c.id, c])));
 
 	let categoriesWithPath = $derived(
-		data.categories
+		rawCategories
 			.map((c) => {
 				let path = c.name;
 				let curr = c;
@@ -27,11 +32,12 @@
 			.sort((a, b) => a.pathName.localeCompare(b.pathName))
 	);
 
-	let selectedCategoryIds = $state<Set<number>>(
-		untrack(() => new Set(categoriesWithPath.map((c) => c.id)))
-	);
+	// Initialize as empty, we will populate this via an effect once data loads
+	let selectedCategoryIds = new SvelteSet<number>();
 
-	let isCategoryFilterActive = $derived(selectedCategoryIds.size < categoriesWithPath.length);
+	let isCategoryFilterActive = $derived(
+		selectedCategoryIds.size > 0 && selectedCategoryIds.size < categoriesWithPath.length
+	);
 	let isCategoryFilterOpen = $state(false);
 	let categoryFilterContainer: HTMLDivElement | undefined = $state();
 	let categorySearchQuery = $state('');
@@ -43,29 +49,31 @@
 	);
 
 	function toggleCategory(id: number) {
-		const newSet = new SvelteSet(selectedCategoryIds);
-		if (newSet.has(id)) {
-			newSet.delete(id);
+		if (selectedCategoryIds.has(id)) {
+			selectedCategoryIds.delete(id);
 		} else {
-			newSet.add(id);
+			selectedCategoryIds.add(id);
 		}
-		selectedCategoryIds = newSet;
 	}
 
 	function selectAllCategories() {
-		selectedCategoryIds = new Set(categoriesWithPath.map((c) => c.id));
+		selectedCategoryIds.clear();
+		categoriesWithPath.forEach((c) => selectedCategoryIds.add(c.id));
 	}
 
 	function clearAllCategories() {
-		selectedCategoryIds = new Set();
+		selectedCategoryIds.clear();
 	}
 
 	// --- Tag Logic ---
-	let sortedTags = $derived([...data.tags].sort((a, b) => a.name.localeCompare(b.name)));
+	let sortedTags = $derived([...rawTags].sort((a, b) => a.name.localeCompare(b.name)));
 
-	let selectedTagIds = $state<Set<number>>(untrack(() => new Set(sortedTags.map((t) => t.id))));
+	// Initialize as empty
+	let selectedTagIds = new SvelteSet<number>();
 
-	let isTagFilterActive = $derived(selectedTagIds.size < sortedTags.length);
+	let isTagFilterActive = $derived(
+		selectedTagIds.size > 0 && selectedTagIds.size < sortedTags.length
+	);
 	let isTagFilterOpen = $state(false);
 	let tagFilterContainer: HTMLDivElement | undefined = $state();
 	let tagSearchQuery = $state('');
@@ -75,29 +83,41 @@
 	);
 
 	function toggleTag(id: number) {
-		const newSet = new SvelteSet(selectedTagIds);
-		if (newSet.has(id)) {
-			newSet.delete(id);
+		if (selectedTagIds.has(id)) {
+			selectedTagIds.delete(id);
 		} else {
-			newSet.add(id);
+			selectedTagIds.add(id);
 		}
-		selectedTagIds = newSet;
 	}
 
 	function selectAllTags() {
-		selectedTagIds = new Set(sortedTags.map((t) => t.id));
+		selectedTagIds.clear();
+		sortedTags.forEach((t) => selectedTagIds.add(t.id));
 	}
 
 	function clearAllTags() {
-		selectedTagIds = new Set();
+		selectedTagIds.clear();
 	}
+
+	// --- State Initialization ---
+	// Because data loading is asynchronous, we need to check all boxes
+	// the first time the data actually arrives.
+	let filtersInitialized = $state(false);
+
+	$effect(() => {
+		if (appQuery.data && !filtersInitialized) {
+			untrack(() => {
+				selectAllCategories();
+				selectAllTags();
+				filtersInitialized = true;
+			});
+		}
+	});
 
 	// --- Filtering & Pagination ---
 	let filteredTransactions = $derived(
-		data.transactions.filter((tx) => {
+		rawTransactions.filter((tx) => {
 			const catMatch = selectedCategoryIds.has(tx.category.id);
-			// If tag filter is not active, let everything pass (including untagged).
-			// If it is active, the transaction must have at least one selected tag.
 			const tagMatch =
 				!isTagFilterActive ||
 				(tx.tags && tx.tags.some((tag) => selectedTagIds.has(tag.id)));
@@ -153,183 +173,189 @@
 
 <h1 class="text-2xl font-bold mb-4">Transactions</h1>
 
-<div class="mb-6 flex flex-wrap items-center gap-4">
-	<AsyncButton
-		class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 whitespace-nowrap"
-		action={async () => await goto(resolve('/transactions/new'))}
-	>
-		+ New Transaction
-	</AsyncButton>
-
-	<div class="relative" bind:this={categoryFilterContainer}>
-		<button
-			type="button"
-			class="px-4 py-2 rounded flex items-center gap-2 transition-colors
-            {isCategoryFilterActive
-				? 'bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:hover:bg-amber-800'
-				: 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600'}"
-			onclick={() => (isCategoryFilterOpen = !isCategoryFilterOpen)}
-		>
-			<span class="font-medium">
-				{isCategoryFilterActive ? 'Filter Categories (Active)' : 'Filter Categories'}
-			</span>
-			<svg
-				class="w-4 h-4"
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M19 9l-7 7-7-7"
-				/>
-			</svg>
-		</button>
-
-		{#if isCategoryFilterOpen}
-			<div
-				class="absolute left-0 mt-2 w-64 bg-gray-100 dark:bg-gray-800 p-4 rounded shadow-lg z-20"
-			>
-				<input
-					type="text"
-					placeholder="Search categories..."
-					class="w-full p-2 mb-3 border rounded dark:bg-gray-700 dark:text-white"
-					bind:value={categorySearchQuery}
-				/>
-
-				<div class="flex flex-col gap-2 max-h-64 overflow-auto">
-					{#if visibleCategories.length > 0}
-						{#each visibleCategories as cat (cat.id)}
-							<label class="flex items-center space-x-2">
-								<input
-									type="checkbox"
-									checked={selectedCategoryIds.has(cat.id)}
-									onchange={() => toggleCategory(cat.id)}
-								/>
-								<span>{cat.pathName}</span>
-							</label>
-						{/each}
-					{:else}
-						<p class="text-sm text-gray-500 italic">No categories found</p>
-					{/if}
-				</div>
-
-				<div class="flex justify-between mt-3">
-					<button
-						type="button"
-						class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
-						onclick={selectAllCategories}
-					>
-						Select All
-					</button>
-					<button
-						type="button"
-						class="px-3 py-1 rounded bg-gray-400 text-white hover:bg-gray-500"
-						onclick={clearAllCategories}
-					>
-						Deselect All
-					</button>
-				</div>
-			</div>
-		{/if}
+{#if appQuery.isPending}
+	<div class="py-12 text-center text-gray-500">
+		<p>Loading your transactions...</p>
 	</div>
-
-	<div class="relative" bind:this={tagFilterContainer}>
-		<button
-			type="button"
-			class="px-4 py-2 rounded flex items-center gap-2 transition-colors
-            {isTagFilterActive
-				? 'bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:hover:bg-amber-800'
-				: 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600'}"
-			onclick={() => (isTagFilterOpen = !isTagFilterOpen)}
-		>
-			<span class="font-medium">
-				{isTagFilterActive ? 'Filter Tags (Active)' : 'Filter Tags'}
-			</span>
-			<svg
-				class="w-4 h-4"
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M19 9l-7 7-7-7"
-				/>
-			</svg>
-		</button>
-
-		{#if isTagFilterOpen}
-			<div
-				class="absolute left-0 mt-2 w-64 bg-gray-100 dark:bg-gray-800 p-4 rounded shadow-lg z-20"
-			>
-				<input
-					type="text"
-					placeholder="Search tags..."
-					class="w-full p-2 mb-3 border rounded dark:bg-gray-700 dark:text-white"
-					bind:value={tagSearchQuery}
-				/>
-
-				<div class="flex flex-col gap-2 max-h-64 overflow-auto">
-					{#if visibleTags.length > 0}
-						{#each visibleTags as tag (tag.id)}
-							<label class="flex items-center space-x-2">
-								<input
-									type="checkbox"
-									checked={selectedTagIds.has(tag.id)}
-									onchange={() => toggleTag(tag.id)}
-								/>
-								<span>{tag.name}</span>
-							</label>
-						{/each}
-					{:else}
-						<p class="text-sm text-gray-500 italic">No tags found</p>
-					{/if}
-				</div>
-
-				<div class="flex justify-between mt-3">
-					<button
-						type="button"
-						class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
-						onclick={selectAllTags}
-					>
-						Select All
-					</button>
-					<button
-						type="button"
-						class="px-3 py-1 rounded bg-gray-400 text-white hover:bg-gray-500"
-						onclick={clearAllTags}
-					>
-						Deselect All
-					</button>
-				</div>
-			</div>
-		{/if}
+{:else if appQuery.isError}
+	<div class="py-12 text-center text-red-500">
+		<p>Error loading data: {appQuery.error.message}</p>
 	</div>
-</div>
-
-{#if visibleTransactions.length}
-	<ul class="space-y-4">
-		{#each visibleTransactions as tx (tx.id)}
-			<TransactionCard transaction={tx} allCategories={data.categories} showActions={true} />
-		{/each}
-
-		<div style="height: {phantomHeight}px; width: 100%"></div>
-	</ul>
-
-	{#if limit < filteredTransactions.length}
-		<p class="text-center text-xs text-gray-400 mt-2">Loading rest of data...</p>
-	{:else}
-		<p class="text-center text-xs text-gray-400 mt-2 mb-8">
-			Showing all {filteredTransactions.length} transactions
-		</p>
-	{/if}
 {:else}
-	<p class="text-gray-500 italic">No transactions match the selected filters.</p>
+	<div class="mb-6 flex flex-wrap items-center gap-4">
+		<AsyncButton
+			class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 whitespace-nowrap"
+			action={async () => await goto(resolve('/transactions/new'))}
+		>
+			+ New Transaction
+		</AsyncButton>
+
+		<div class="relative" bind:this={categoryFilterContainer}>
+			<button
+				type="button"
+				class="px-4 py-2 rounded flex items-center gap-2 transition-colors
+                {isCategoryFilterActive
+					? 'bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:hover:bg-amber-800'
+					: 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600'}"
+				onclick={() => (isCategoryFilterOpen = !isCategoryFilterOpen)}
+			>
+				<span class="font-medium">
+					{isCategoryFilterActive ? 'Filter Categories (Active)' : 'Filter Categories'}
+				</span>
+				<svg
+					class="w-4 h-4"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M19 9l-7 7-7-7"
+					/>
+				</svg>
+			</button>
+
+			{#if isCategoryFilterOpen}
+				<div
+					class="absolute left-0 mt-2 w-64 bg-gray-100 dark:bg-gray-800 p-4 rounded shadow-lg z-20"
+				>
+					<input
+						type="text"
+						placeholder="Search categories..."
+						class="w-full p-2 mb-3 border rounded dark:bg-gray-700 dark:text-white"
+						bind:value={categorySearchQuery}
+					/>
+
+					<div class="flex flex-col gap-2 max-h-64 overflow-auto">
+						{#if visibleCategories.length > 0}
+							{#each visibleCategories as cat (cat.id)}
+								<label class="flex items-center space-x-2">
+									<input
+										type="checkbox"
+										checked={selectedCategoryIds.has(cat.id)}
+										onchange={() => toggleCategory(cat.id)}
+									/>
+									<span>{cat.pathName}</span>
+								</label>
+							{/each}
+						{:else}
+							<p class="text-sm text-gray-500 italic">No categories found</p>
+						{/if}
+					</div>
+
+					<div class="flex justify-between mt-3">
+						<button
+							type="button"
+							class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
+							onclick={selectAllCategories}>Select All</button
+						>
+						<button
+							type="button"
+							class="px-3 py-1 rounded bg-gray-400 text-white hover:bg-gray-500"
+							onclick={clearAllCategories}>Deselect All</button
+						>
+					</div>
+				</div>
+			{/if}
+		</div>
+
+		<div class="relative" bind:this={tagFilterContainer}>
+			<button
+				type="button"
+				class="px-4 py-2 rounded flex items-center gap-2 transition-colors
+                {isTagFilterActive
+					? 'bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:hover:bg-amber-800'
+					: 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600'}"
+				onclick={() => (isTagFilterOpen = !isTagFilterOpen)}
+			>
+				<span class="font-medium">
+					{isTagFilterActive ? 'Filter Tags (Active)' : 'Filter Tags'}
+				</span>
+				<svg
+					class="w-4 h-4"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M19 9l-7 7-7-7"
+					/>
+				</svg>
+			</button>
+
+			{#if isTagFilterOpen}
+				<div
+					class="absolute left-0 mt-2 w-64 bg-gray-100 dark:bg-gray-800 p-4 rounded shadow-lg z-20"
+				>
+					<input
+						type="text"
+						placeholder="Search tags..."
+						class="w-full p-2 mb-3 border rounded dark:bg-gray-700 dark:text-white"
+						bind:value={tagSearchQuery}
+					/>
+
+					<div class="flex flex-col gap-2 max-h-64 overflow-auto">
+						{#if visibleTags.length > 0}
+							{#each visibleTags as tag (tag.id)}
+								<label class="flex items-center space-x-2">
+									<input
+										type="checkbox"
+										checked={selectedTagIds.has(tag.id)}
+										onchange={() => toggleTag(tag.id)}
+									/>
+									<span>{tag.name}</span>
+								</label>
+							{/each}
+						{:else}
+							<p class="text-sm text-gray-500 italic">No tags found</p>
+						{/if}
+					</div>
+
+					<div class="flex justify-between mt-3">
+						<button
+							type="button"
+							class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
+							onclick={selectAllTags}>Select All</button
+						>
+						<button
+							type="button"
+							class="px-3 py-1 rounded bg-gray-400 text-white hover:bg-gray-500"
+							onclick={clearAllTags}>Deselect All</button
+						>
+					</div>
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	{#if visibleTransactions.length}
+		<ul class="space-y-4">
+			{#each visibleTransactions as tx (tx.id)}
+				<TransactionCard
+					transaction={tx}
+					allCategories={rawCategories}
+					showActions={true}
+				/>
+			{/each}
+
+			<div style="height: {phantomHeight}px; width: 100%"></div>
+		</ul>
+
+		{#if limit < filteredTransactions.length}
+			<p class="text-center text-xs text-gray-400 mt-2">Loading rest of data...</p>
+		{:else}
+			<p class="text-center text-xs text-gray-400 mt-2 mb-8">
+				Showing all {filteredTransactions.length} transactions
+			</p>
+		{/if}
+	{:else}
+		<p class="text-gray-500 italic">No transactions match the selected filters.</p>
+	{/if}
 {/if}
