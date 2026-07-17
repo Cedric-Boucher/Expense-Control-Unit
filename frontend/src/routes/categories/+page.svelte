@@ -4,6 +4,7 @@
 	import type { Category } from '$lib/types';
 	import CategoryCard from '$lib/components/CategoryCard.svelte';
 	import { resolve } from '$app/paths';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let { data }: { data: { categories: Category[] } } = $props();
 
@@ -37,12 +38,12 @@
 <h1 class="text-2xl font-bold mb-4">Categories</h1>
 
 <div class="mb-6">
-	<button
+	<AsyncButton
 		class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-		onclick={() => goto(resolve('/categories/new'))}
+		action={async () => await goto(resolve('/categories/new'))}
 	>
 		+ New Category
-	</button>
+	</AsyncButton>
 </div>
 
 {#if visibleCategories.length}

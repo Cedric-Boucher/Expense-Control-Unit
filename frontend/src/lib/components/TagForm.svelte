@@ -5,6 +5,7 @@
 	import type { Tag, NewTag } from '$lib/types';
 	import { formatTimestampLocal } from '$lib/utils';
 	import { resolve } from '$app/paths';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let {
 		initial = {},
@@ -39,8 +40,7 @@
 	const toISOStringIfDefined = (str: string | undefined | null) =>
 		str ? new Date(str).toISOString() : null;
 
-	async function submit(e: Event) {
-		e.preventDefault();
+	async function submit() {
 		error = '';
 		const finalName = name.trim();
 
@@ -67,12 +67,12 @@
 		}
 	}
 
-	function cancel() {
-		goto(resolve('/tags'));
+	async function cancel() {
+		await goto(resolve('/tags'));
 	}
 </script>
 
-<form onsubmit={submit} class="space-y-4 max-w-md">
+<form onsubmit={(e) => e.preventDefault()} class="space-y-4 max-w-md">
 	<div>
 		<label for="name" class="block font-medium">Tag Name</label>
 		<input
@@ -110,17 +110,22 @@
 	</div>
 
 	<div class="flex space-x-4 pt-2">
-		<button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+		<AsyncButton
+			type="submit"
+			action={submit}
+			class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+		>
 			{submitLabel}
-		</button>
+		</AsyncButton>
+
 		{#if showCancel}
-			<button
+			<AsyncButton
 				type="button"
-				onclick={cancel}
+				action={cancel}
 				class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
 			>
 				Cancel
-			</button>
+			</AsyncButton>
 		{/if}
 	</div>
 

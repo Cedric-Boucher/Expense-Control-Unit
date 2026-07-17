@@ -7,7 +7,7 @@
 
 	async function handleSubmit(data: NewCategory) {
 		await createCategory(data);
-		goto(resolve('/categories'));
+		await goto(resolve('/categories'));
 	}
 </script>
 

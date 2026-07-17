@@ -7,7 +7,7 @@
 
 	async function handleSubmit(data: NewTag) {
 		await createTag(data);
-		goto(resolve('/tags'));
+		await goto(resolve('/tags'));
 	}
 </script>
 

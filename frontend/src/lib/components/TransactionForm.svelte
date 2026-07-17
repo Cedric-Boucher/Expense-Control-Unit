@@ -3,6 +3,7 @@
 	import { getCategories, getTags, createTag } from '$lib/api';
 	import type { Category, NewTransaction, Transaction, Tag } from '$lib/types';
 	import { formatTimestampLocal } from '$lib/utils';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let {
 		initial = {},
@@ -13,7 +14,7 @@
 	}: {
 		initial?: Partial<Transaction>;
 		onSubmit: (data: NewTransaction) => Promise<void>;
-		onCancel: () => void;
+		onCancel: () => Promise<void>;
 		submitLabel?: string;
 		showCancel?: boolean;
 	} = $props();
@@ -189,8 +190,7 @@
 		}
 	}
 
-	async function submit(e: Event) {
-		e.preventDefault();
+	async function submit() {
 		error = '';
 
 		if (!amount || !selectedCategory) {
@@ -237,7 +237,7 @@
 	}
 </script>
 
-<form onsubmit={submit} class="space-y-4 max-w-md">
+<form onsubmit={(e) => e.preventDefault()} class="space-y-4 max-w-md">
 	<div>
 		<label for="amnt" class="block font-medium">Amount</label>
 		<input
@@ -403,19 +403,25 @@
 	{/if}
 
 	<div class="flex space-x-4">
-		<button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+		<AsyncButton
+			type="submit"
+			action={submit}
+			class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+		>
 			{submitLabel}
-		</button>
+		</AsyncButton>
+
 		{#if showCancel}
-			<button
+			<AsyncButton
 				type="button"
-				onclick={onCancel}
+				action={onCancel}
 				class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
 			>
 				Cancel
-			</button>
+			</AsyncButton>
 		{/if}
 	</div>
+
 	{#if error}
 		<p class="text-red-600">{error}</p>
 	{/if}

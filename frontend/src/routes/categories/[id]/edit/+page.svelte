@@ -35,7 +35,7 @@
 		if (id) {
 			await updateCategory(id, data);
 		}
-		goto(resolve(redirectTo));
+		await goto(resolve(redirectTo));
 	}
 </script>
 

@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let {
 		category,
@@ -38,20 +39,20 @@
 		};
 	}
 
-	function handleEdit() {
+	async function handleEdit() {
 		if (onEdit) onEdit();
 		else
-			goto(
+			await goto(
 				resolve(
 					`/categories/${category.id}/edit?redirectTo=${encodeURIComponent(page.url.pathname)}`
 				)
 			);
 	}
 
-	function handleDelete() {
+	async function handleDelete() {
 		if (onDelete) onDelete();
 		else
-			goto(
+			await goto(
 				resolve(
 					`/categories/${category.id}/delete?redirectTo=${encodeURIComponent(page.url.pathname)}`
 				)
@@ -83,15 +84,13 @@
 
 	{#if showActions}
 		<div class="flex flex-col gap-2">
-			<button
-				type="button"
+			<AsyncButton
 				class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-				onclick={handleEdit}>Edit</button
+				action={handleEdit}>Edit</AsyncButton
 			>
-			<button
-				type="button"
+			<AsyncButton
 				class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-				onclick={handleDelete}>Delete</button
+				action={handleDelete}>Delete</AsyncButton
 			>
 		</div>
 	{/if}
