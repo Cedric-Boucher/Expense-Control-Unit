@@ -2,9 +2,9 @@
 	import type { Transaction, Category, Tag } from '$lib/types';
 	import { formatTimestampLocalForDisplay } from '$lib/utils';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { useAppData } from '$lib/queries';
 
-	let { data }: { data: { transactions: Transaction[]; categories: Category[]; tags: Tag[] } } =
-		$props();
+	const appData = useAppData();
 
 	// --- Controls State ---
 	let viewMode = $state<'expenses' | 'income' | 'combined'>('combined');
@@ -13,10 +13,8 @@
 	let interestRate = $state<number>(0);
 
 	// Svelte 5 Reactivity for toggles (Composite keys: tagId_categoryId)
-	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-	let expandedIds = $state(new SvelteSet<string>());
-	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-	let showTxIds = $state(new SvelteSet<string>());
+	let expandedIds = new SvelteSet<string>();
+	let showTxIds = new SvelteSet<string>();
 
 	// --- Data Structures ---
 	type CatNode = {
@@ -42,19 +40,23 @@
 
 	// --- Core Aggregation Engine ---
 	let treeData = $derived.by(() => {
+		const transactions = appData.data?.transactions ?? [];
+		const categories = appData.data?.categories ?? [];
+		const tags = appData.data?.tags ?? [];
+
 		const interest = (interestRate || 0) / 100;
 		const now = new Date();
-		const catMap = new Map(data.categories.map((c) => [c.id, c]));
+		const catMap = new Map(categories.map((c) => [c.id, c]));
 
 		// 1. Group transactions by Tag, applying our filters
 		const txsByTag = new SvelteMap<number | 'untagged', Transaction[]>();
-		data.transactions.forEach((tx) => {
+		transactions.forEach((tx) => {
 			if (viewMode === 'expenses' && tx.amount > 0) return;
 			if (viewMode === 'income' && tx.amount < 0) return;
 
-			const tags = tx.tags && tx.tags.length > 0 ? tx.tags : [null];
+			const txTags = tx.tags && tx.tags.length > 0 ? tx.tags : [null];
 
-			tags.forEach((t) => {
+			txTags.forEach((t) => {
 				const key = t ? t.id : 'untagged';
 
 				if (key === 'untagged') {
@@ -82,7 +84,7 @@
 			if (txs.length === 0) continue; // Optimization: Skip rendering empty trees
 
 			const isUntagged = key === 'untagged';
-			const tag = isUntagged ? null : data.tags.find((t) => t.id === key) || null;
+			const tag = isUntagged ? null : tags.find((t) => t.id === key) || null;
 
 			const endDate = tag && tag.closing_date ? new Date(tag.closing_date) : now;
 
@@ -224,17 +226,19 @@
 	}
 
 	function toggleExpand(compositeId: string) {
-		const next = new SvelteSet(expandedIds);
-		if (next.has(compositeId)) next.delete(compositeId);
-		else next.add(compositeId);
-		expandedIds = next;
+		if (expandedIds.has(compositeId)) {
+			expandedIds.delete(compositeId);
+		} else {
+			expandedIds.add(compositeId);
+		}
 	}
 
 	function toggleTransactions(compositeId: string) {
-		const next = new SvelteSet(showTxIds);
-		if (next.has(compositeId)) next.delete(compositeId);
-		else next.add(compositeId);
-		showTxIds = next;
+		if (showTxIds.has(compositeId)) {
+			showTxIds.delete(compositeId);
+		} else {
+			showTxIds.add(compositeId);
+		}
 	}
 </script>
 
@@ -474,41 +478,52 @@
 	</details>
 {/snippet}
 
-<div class="space-y-8">
-	{#if activeAssets.length > 0}
-		<section>
-			<h2 class="text-lg font-semibold mb-3 border-b pb-1">Active Assets</h2>
-			<div class="space-y-4">
-				{#each activeAssets as node (node.id)}
-					{@render tagSection(node, false, false)}
-				{/each}
-			</div>
-		</section>
-	{/if}
+{#if appData.isPending}
+	<div class="p-8 text-center text-gray-500 italic bg-gray-50 dark:bg-gray-800 rounded">
+		Loading assets...
+	</div>
+{:else}
+	<div class="space-y-8">
+		{#if activeAssets.length > 0}
+			<section>
+				<h2 class="text-lg font-semibold mb-3 border-b pb-1">Active Assets</h2>
+				<div class="space-y-4">
+					{#each activeAssets as node (node.id)}
+						{@render tagSection(node, false, false)}
+					{/each}
+				</div>
+			</section>
+		{/if}
 
-	{#if showClosed && closedAssets.length > 0}
-		<section>
-			<h2 class="text-lg font-semibold mb-3 border-b pb-1 text-gray-500">Closed Assets</h2>
-			<div class="space-y-4">
-				{#each closedAssets as node (node.id)}
-					{@render tagSection(node, true, false)}
-				{/each}
-			</div>
-		</section>
-	{/if}
+		{#if showClosed && closedAssets.length > 0}
+			<section>
+				<h2 class="text-lg font-semibold mb-3 border-b pb-1 text-gray-500">
+					Closed Assets
+				</h2>
+				<div class="space-y-4">
+					{#each closedAssets as node (node.id)}
+						{@render tagSection(node, true, false)}
+					{/each}
+				</div>
+			</section>
+		{/if}
 
-	{#if untaggedAsset && Math.abs(untaggedAsset.totalCost) > 0.01}
-		<section>
-			<h2 class="text-lg font-semibold mb-3 border-b pb-1 text-red-500">Untagged Assets</h2>
-			<div class="space-y-4">
-				{@render tagSection(untaggedAsset, false, true)}
-			</div>
-		</section>
-	{/if}
+		{#if untaggedAsset && Math.abs(untaggedAsset.totalCost) > 0.01}
+			<section>
+				<h2 class="text-lg font-semibold mb-3 border-b pb-1 text-red-500">
+					Untagged Assets
+				</h2>
+				<div class="space-y-4">
+					{@render tagSection(untaggedAsset, false, true)}
+				</div>
+			</section>
+		{/if}
 
-	{#if activeAssets.length === 0 && closedAssets.length === 0 && !untaggedAsset}
-		<div class="p-8 text-center text-gray-500 italic bg-gray-50 dark:bg-gray-800 rounded">
-			No asset transactions found. Tag your transactions in asset categories to see them here!
-		</div>
-	{/if}
-</div>
+		{#if activeAssets.length === 0 && closedAssets.length === 0 && !untaggedAsset}
+			<div class="p-8 text-center text-gray-500 italic bg-gray-50 dark:bg-gray-800 rounded">
+				No asset transactions found. Tag your transactions in asset categories to see them
+				here!
+			</div>
+		{/if}
+	</div>
+{/if}
