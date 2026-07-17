@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { createTag } from '$lib/api';
+	import { useCreateTag } from '$lib/queries';
 	import TagForm from '$lib/components/TagForm.svelte';
 	import type { NewTag } from '$lib/types';
 
+	const createTagMutation = useCreateTag();
+
 	async function handleSubmit(data: NewTag) {
-		await createTag(data);
+		await createTagMutation.mutateAsync(data);
 		await goto(resolve('/tags'));
 	}
 </script>

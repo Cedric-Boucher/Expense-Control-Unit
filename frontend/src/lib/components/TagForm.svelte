@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount, untrack } from 'svelte';
-	import { getTags } from '$lib/api';
+	import { untrack } from 'svelte';
+	import { useAppData } from '$lib/queries';
 	import type { Tag, NewTag } from '$lib/types';
 	import { formatTimestampLocal } from '$lib/utils';
 	import { resolve } from '$app/paths';
@@ -19,17 +19,15 @@
 		showCancel?: boolean;
 	} = $props();
 
+	const appData = useAppData();
+
 	let name = $state(untrack(() => initial.name ?? ''));
 	let closingDate = $state(
 		untrack(() => (initial.closing_date ? formatTimestampLocal(initial.closing_date) : ''))
 	);
 	let error = $state('');
 
-	let allTags = $state<Tag[]>([]);
-
-	onMount(async () => {
-		allTags = await getTags();
-	});
+	let allTags = $derived(appData.data?.tags ?? []);
 
 	let trimmedName = $derived(name.trim().toLowerCase());
 
@@ -114,6 +112,7 @@
 			type="submit"
 			action={submit}
 			class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+			disabled={appData.isPending}
 		>
 			{submitLabel}
 		</AsyncButton>

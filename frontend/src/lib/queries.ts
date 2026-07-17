@@ -8,9 +8,12 @@ import {
 	deleteTransaction,
 	createCategory,
 	updateCategory,
-	deleteCategory
+	deleteCategory,
+	createTag,
+	updateTag,
+	deleteTag
 } from '$lib/api';
-import type { Transaction, Category, Tag, NewTransaction, NewCategory } from '$lib/types';
+import type { Transaction, Category, Tag, NewTransaction, NewCategory, NewTag } from '$lib/types';
 
 export interface AppData {
 	transactions: Transaction[];
@@ -99,6 +102,41 @@ export function useDeleteCategory() {
 
 	return createMutation(() => ({
 		mutationFn: (id: string) => deleteCategory(id),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['appData'] });
+		}
+	}));
+}
+
+// --- Tag Mutations ---
+
+export function useCreateTag() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: (payload: NewTag) => createTag(payload),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['appData'] });
+		}
+	}));
+}
+
+export function useUpdateTag() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: ({ id, data }: { id: string; data: NewTag }) => updateTag(id, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['appData'] });
+		}
+	}));
+}
+
+export function useDeleteTag() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: (id: string) => deleteTag(id),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['appData'] });
 		}

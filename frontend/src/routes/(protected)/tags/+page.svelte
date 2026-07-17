@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import type { Tag } from '$lib/types';
 	import TagCard from '$lib/components/TagCard.svelte';
 	import { resolve } from '$app/paths';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
+	import { useAppData } from '$lib/queries';
 
-	let { data }: { data: { tags: Tag[] } } = $props();
+	const appData = useAppData();
+
+	// Derive the tags from the query cache, defaulting to an empty array
+	let tags = $derived(appData.data?.tags ?? []);
 
 	const BATCH_SIZE = 50;
 	const ESTIMATED_ITEM_HEIGHT = 80;
@@ -14,14 +17,15 @@
 	let limit = $state(BATCH_SIZE);
 
 	function loadMore() {
-		if (limit < data.tags.length) {
+		if (limit < tags.length) {
 			limit += BATCH_SIZE;
 			setTimeout(loadMore, 0);
 		}
 	}
 
 	$effect(() => {
-		if (data.tags) {
+		// Trigger the batching load mechanism once tags are populated
+		if (tags.length > 0) {
 			untrack(() => {
 				limit = BATCH_SIZE;
 				if (typeof window !== 'undefined') window.scrollTo(0, 0);
@@ -30,8 +34,8 @@
 		}
 	});
 
-	let visibleTags = $derived(data.tags.slice(0, limit));
-	let remainingCount = $derived(Math.max(0, data.tags.length - limit));
+	let visibleTags = $derived(tags.slice(0, limit));
+	let remainingCount = $derived(Math.max(0, tags.length - limit));
 	let phantomHeight = $derived(remainingCount * ESTIMATED_ITEM_HEIGHT);
 </script>
 
@@ -46,7 +50,11 @@
 	</AsyncButton>
 </div>
 
-{#if visibleTags.length}
+{#if appData.isPending}
+	<p>Loading tags...</p>
+{:else if appData.isError}
+	<p class="text-red-600">Failed to load tags.</p>
+{:else if visibleTags.length}
 	<ul class="space-y-4">
 		{#each visibleTags as tag (tag.id)}
 			<TagCard {tag} showActions={true} />

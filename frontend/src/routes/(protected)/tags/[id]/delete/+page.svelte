@@ -1,50 +1,37 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getTag, deleteTag } from '$lib/api';
 	import { goto } from '$app/navigation';
-	import type { Tag } from '$lib/types';
+	import { useAppData, useDeleteTag } from '$lib/queries';
 	import TagCard from '$lib/components/TagCard.svelte';
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
-	let tag = $state<Tag | null>(null);
-	let error = $state('');
-	let loading = $state(true);
+	const appData = useAppData();
+	const deleteTagMutation = useDeleteTag();
+
+	let actionError = $state('');
 
 	let id = $derived(page.params.id);
+	let numericId = $derived(Number(id));
 	let redirectTo = $derived((page.url.searchParams.get('redirectTo') ?? '/tags') as Pathname);
 
+	let tag = $derived(appData.data?.tags?.find((t) => t.id === numericId));
+
 	$effect(() => {
-		if (id) {
-			loadData(id);
-		} else {
+		if (!id) {
 			if (redirectTo) goto(resolve(redirectTo));
 		}
 	});
 
-	async function loadData(currentId: string) {
-		loading = true;
-		error = '';
-
-		try {
-			tag = await getTag(currentId);
-		} catch (e) {
-			error = 'Failed to load tag data.';
-			console.error(e);
-		} finally {
-			loading = false;
-		}
-	}
-
 	async function confirmDelete() {
 		try {
 			if (id) {
-				await deleteTag(id);
+				await deleteTagMutation.mutateAsync(id);
 			}
 			await goto(resolve(redirectTo));
 		} catch (e) {
-			error = 'Failed to delete tag.';
+			actionError = 'Failed to delete tag.';
 			console.error(e);
 		}
 	}
@@ -54,10 +41,10 @@
 	}
 </script>
 
-{#if loading}
+{#if appData.isPending}
 	<p>Loading...</p>
-{:else if error}
-	<p class="text-red-600">{error}</p>
+{:else if appData.isError}
+	<p class="text-red-600">Failed to load data.</p>
 {:else if tag}
 	<h1 class="text-2xl font-bold mb-4">Delete Tag</h1>
 
@@ -83,6 +70,9 @@
 			Cancel
 		</AsyncButton>
 	</div>
+	{#if actionError}
+		<p class="text-red-600 mt-4">{actionError}</p>
+	{/if}
 {:else}
 	<p class="text-gray-500 italic">Tag not found.</p>
 {/if}
