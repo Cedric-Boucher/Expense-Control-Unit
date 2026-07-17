@@ -5,6 +5,7 @@
 	import TransactionCard from '$lib/components/TransactionCard.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let { data }: { data: { transactions: Transaction[]; categories: Category[]; tags: Tag[] } } =
 		$props();
@@ -153,12 +154,12 @@
 <h1 class="text-2xl font-bold mb-4">Transactions</h1>
 
 <div class="mb-6 flex flex-wrap items-center gap-4">
-	<button
+	<AsyncButton
 		class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 whitespace-nowrap"
-		onclick={() => goto(resolve('/transactions/new'))}
+		action={async () => await goto(resolve('/transactions/new'))}
 	>
 		+ New Transaction
-	</button>
+	</AsyncButton>
 
 	<div class="relative" bind:this={categoryFilterContainer}>
 		<button

@@ -3,22 +3,20 @@
 	import { resolve } from '$app/paths';
 	import { login, signup } from '$lib/api';
 	import type { NewUser } from '$lib/types';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let { mode }: { mode: 'login' | 'signup' } = $props();
 
 	let username = $state('');
 	let password = $state('');
 	let error = $state('');
-	let isSubmitting = $state(false);
 
 	let isLogin = $derived(mode === 'login');
 	let title = $derived(isLogin ? 'Login' : 'Sign Up');
 	let buttonColor = $derived(isLogin ? 'bg-blue-600' : 'bg-green-600');
 
-	async function submit(event: SubmitEvent) {
-		event.preventDefault();
+	async function submit() {
 		error = '';
-		isSubmitting = true;
 
 		const payload: NewUser = {
 			username,
@@ -31,7 +29,7 @@
 			} else {
 				await signup(payload);
 			}
-			goto(resolve('/transactions'));
+			await goto(resolve('/transactions'));
 		} catch (e) {
 			if (isLogin) {
 				error = 'Invalid credentials';
@@ -40,13 +38,12 @@
 				error = err.message || 'An error occurred during sign up.';
 			}
 			console.error(e);
-			isSubmitting = false;
 		}
 	}
 </script>
 
 <h1>{title}</h1>
-<form onsubmit={submit} class="space-y-4 max-w-sm">
+<form onsubmit={(e) => e.preventDefault()} class="space-y-4 max-w-sm">
 	<input
 		bind:value={username}
 		placeholder="Username"
@@ -60,12 +57,8 @@
 		required
 		class="w-full p-2 rounded border"
 	/>
-	<button
-		type="submit"
-		disabled={isSubmitting}
-		class="w-full p-2 {buttonColor} text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
-	>
-		{isSubmitting ? 'Processing...' : title}
-	</button>
+	<AsyncButton type="submit" action={submit} class="w-full p-2 {buttonColor} text-white rounded">
+		{title}
+	</AsyncButton>
 	{#if error}<p class="text-red-500">{error}</p>{/if}
 </form>

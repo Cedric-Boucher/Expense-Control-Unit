@@ -7,11 +7,11 @@
 
 	async function handleCreate(payload: NewTransaction) {
 		await createTransaction(payload);
-		goto(resolve('/transactions'));
+		await goto(resolve('/transactions'));
 	}
 
-	function cancel() {
-		goto(resolve('/transactions'));
+	async function cancel() {
+		await goto(resolve('/transactions'));
 	}
 </script>
 

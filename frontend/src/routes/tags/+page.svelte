@@ -4,6 +4,7 @@
 	import type { Tag } from '$lib/types';
 	import TagCard from '$lib/components/TagCard.svelte';
 	import { resolve } from '$app/paths';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let { data }: { data: { tags: Tag[] } } = $props();
 
@@ -37,12 +38,12 @@
 <h1 class="text-2xl font-bold mb-4">Tags</h1>
 
 <div class="mb-6">
-	<button
+	<AsyncButton
 		class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-		onclick={() => goto(resolve('/tags/new'))}
+		action={async () => await goto(resolve('/tags/new'))}
 	>
 		+ New Tag
-	</button>
+	</AsyncButton>
 </div>
 
 {#if visibleTags.length}

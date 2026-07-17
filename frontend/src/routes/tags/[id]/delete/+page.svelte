@@ -6,6 +6,7 @@
 	import TagCard from '$lib/components/TagCard.svelte';
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let tag = $state<Tag | null>(null);
 	let error = $state('');
@@ -41,15 +42,15 @@
 			if (id) {
 				await deleteTag(id);
 			}
-			goto(resolve(redirectTo));
+			await goto(resolve(redirectTo));
 		} catch (e) {
 			error = 'Failed to delete tag.';
 			console.error(e);
 		}
 	}
 
-	function cancel() {
-		goto(resolve(redirectTo));
+	async function cancel() {
+		await goto(resolve(redirectTo));
 	}
 </script>
 
@@ -69,18 +70,18 @@
 	</p>
 
 	<div class="flex space-x-4 mt-4">
-		<button
-			onclick={confirmDelete}
+		<AsyncButton
+			action={confirmDelete}
 			class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
 		>
 			Yes, Delete
-		</button>
-		<button
-			onclick={cancel}
+		</AsyncButton>
+		<AsyncButton
+			action={cancel}
 			class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
 		>
 			Cancel
-		</button>
+		</AsyncButton>
 	</div>
 {:else}
 	<p class="text-gray-500 italic">Tag not found.</p>

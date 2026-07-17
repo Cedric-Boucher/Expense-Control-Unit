@@ -79,7 +79,7 @@ export async function logout(): Promise<void> {
 		credentials: 'include'
 	});
 	auth.isLoggedIn = false;
-	goto(resolve('/login'));
+	await goto(resolve('/login'));
 }
 
 export async function check_login(): Promise<void> {

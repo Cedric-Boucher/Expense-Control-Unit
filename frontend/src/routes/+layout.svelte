@@ -8,6 +8,7 @@
 	import { exportUserDataToFile, importUserDataFromFile } from '$lib/utils';
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -45,13 +46,13 @@
 		return `${base} ${currentPath.startsWith(pathPrefix) ? active : inactive}`;
 	}
 
-	function handleNav(path: string) {
+	async function handleNav(path: string) {
 		isMobileMenuOpen = false;
-		goto(resolve(path as Pathname));
+		await goto(resolve(path as Pathname));
 	}
 
-	function handleDropdownAction(action: () => void) {
-		action();
+	async function handleDropdownAction(action: () => void | Promise<void>) {
+		await action();
 		isSettingsOpen = false;
 	}
 </script>
@@ -99,36 +100,36 @@
 					</span>
 
 					<div class="hidden md:flex gap-2">
-						<button
-							onclick={() => handleNav('/transactions')}
+						<AsyncButton
+							action={() => handleNav('/transactions')}
 							class={navButtonClasses('/transactions')}
 						>
 							Transactions
-						</button>
-						<button
-							onclick={() => handleNav('/categories')}
+						</AsyncButton>
+						<AsyncButton
+							action={() => handleNav('/categories')}
 							class={navButtonClasses('/categories')}
 						>
 							Categories
-						</button>
-						<button
-							onclick={() => handleNav('/tags')}
+						</AsyncButton>
+						<AsyncButton
+							action={() => handleNav('/tags')}
 							class={navButtonClasses('/tags')}
 						>
 							Tags
-						</button>
-						<button
-							onclick={() => handleNav('/category_summary')}
+						</AsyncButton>
+						<AsyncButton
+							action={() => handleNav('/category_summary')}
 							class={navButtonClasses('/category_summary')}
 						>
 							Category Summary
-						</button>
-						<button
-							onclick={() => handleNav('/assets')}
+						</AsyncButton>
+						<AsyncButton
+							action={() => handleNav('/assets')}
 							class={navButtonClasses('/assets')}
 						>
 							Assets
-						</button>
+						</AsyncButton>
 					</div>
 				{:else}
 					<span class="font-bold text-gray-800 dark:text-gray-200"
@@ -175,46 +176,46 @@
 							<div
 								class="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded shadow-lg border border-gray-100 dark:border-gray-700 z-50 py-1 overflow-hidden"
 							>
-								<button
-									onclick={() => handleDropdownAction(importUserDataFromFile)}
+								<AsyncButton
+									action={() => handleDropdownAction(importUserDataFromFile)}
 									class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
 								>
 									Import Data
-								</button>
-								<button
-									onclick={() => handleDropdownAction(exportUserDataToFile)}
+								</AsyncButton>
+								<AsyncButton
+									action={() => handleDropdownAction(exportUserDataToFile)}
 									class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
 								>
 									Export All Data
-								</button>
+								</AsyncButton>
 								<button
 									onclick={() => handleDropdownAction(toggleDarkMode)}
 									class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border-t border-gray-100 dark:border-gray-700"
 								>
 									{darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
 								</button>
-								<button
-									onclick={() => handleDropdownAction(logout)}
+								<AsyncButton
+									action={() => handleDropdownAction(logout)}
 									class="w-full text-left px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border-t border-gray-100 dark:border-gray-700"
 								>
 									Logout
-								</button>
+								</AsyncButton>
 							</div>
 						{/if}
 					</div>
 				{:else}
-					<button
+					<AsyncButton
 						class="px-3 py-2 rounded text-sm sm:text-base hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium transition-colors"
-						onclick={() => handleNav('/login')}
+						action={() => handleNav('/login')}
 					>
 						Login
-					</button>
-					<button
+					</AsyncButton>
+					<AsyncButton
 						class="px-3 py-2 rounded text-sm sm:text-base hover:bg-blue-100 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 font-medium transition-colors"
-						onclick={() => handleNav('/signup')}
+						action={() => handleNav('/signup')}
 					>
 						Sign Up
-					</button>
+					</AsyncButton>
 					<button
 						onclick={toggleDarkMode}
 						class="px-3 py-2 rounded text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 transition-colors"
@@ -230,30 +231,33 @@
 			<div
 				class="md:hidden flex flex-col gap-1 pb-4 pt-2 border-t border-gray-100 dark:border-gray-700"
 			>
-				<button
-					onclick={() => handleNav('/transactions')}
+				<AsyncButton
+					action={() => handleNav('/transactions')}
 					class={navButtonClasses('/transactions')}
 				>
 					Transactions
-				</button>
-				<button
-					onclick={() => handleNav('/categories')}
+				</AsyncButton>
+				<AsyncButton
+					action={() => handleNav('/categories')}
 					class={navButtonClasses('/categories')}
 				>
 					Categories
-				</button>
-				<button onclick={() => handleNav('/tags')} class={navButtonClasses('/tags')}>
+				</AsyncButton>
+				<AsyncButton action={() => handleNav('/tags')} class={navButtonClasses('/tags')}>
 					Tags
-				</button>
-				<button
-					onclick={() => handleNav('/category_summary')}
+				</AsyncButton>
+				<AsyncButton
+					action={() => handleNav('/category_summary')}
 					class={navButtonClasses('/category_summary')}
 				>
 					Category Summary
-				</button>
-				<button onclick={() => handleNav('/assets')} class={navButtonClasses('/assets')}>
+				</AsyncButton>
+				<AsyncButton
+					action={() => handleNav('/assets')}
+					class={navButtonClasses('/assets')}
+				>
 					Assets
-				</button>
+				</AsyncButton>
 			</div>
 		{/if}
 	</div>

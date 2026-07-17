@@ -33,7 +33,7 @@
 		if (id) {
 			await updateTag(id, data);
 		}
-		goto(resolve(redirectTo));
+		await goto(resolve(redirectTo));
 	}
 </script>
 

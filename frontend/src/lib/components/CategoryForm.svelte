@@ -5,6 +5,7 @@
 	import type { Category, NewCategory } from '$lib/types';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
+	import AsyncButton from '$lib/components/AsyncButton.svelte';
 
 	let {
 		initial = {},
@@ -136,12 +137,12 @@
 		}
 	}
 
-	function cancel() {
-		goto(resolve('/categories'));
+	async function cancel() {
+		await goto(resolve('/categories'));
 	}
 </script>
 
-<form onsubmit={submit} class="space-y-4 max-w-md">
+<form onsubmit={(e) => e.preventDefault()} class="space-y-4 max-w-md">
 	<div>
 		<label for="name" class="block font-medium">Category Name</label>
 		<input id="name" bind:value={name} class="w-full p-2 border rounded" />
@@ -172,17 +173,22 @@
 	</div>
 
 	<div class="flex space-x-4 pt-2">
-		<button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+		<AsyncButton
+			type="submit"
+			action={submit}
+			class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+		>
 			{submitLabel}
-		</button>
+		</AsyncButton>
+
 		{#if showCancel}
-			<button
+			<AsyncButton
 				type="button"
-				onclick={cancel}
+				action={cancel}
 				class="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-600"
 			>
 				Cancel
-			</button>
+			</AsyncButton>
 		{/if}
 	</div>
 
