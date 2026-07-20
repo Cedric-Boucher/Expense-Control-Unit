@@ -6,9 +6,15 @@
 	import { resolve } from '$app/paths';
 	import AsyncButton from '$lib/components/AsyncButton.svelte';
 	import { useAppData } from '$lib/queries';
+	import { createPersistedState } from '$lib/persistedState.svelte';
 
-	// 1. Initialize TanStack Query
 	const appQuery = useAppData();
+
+	// Use null to represent "first visit / no saved filters"
+	const persistentFilters = createPersistedState<{
+		categories: number[] | null;
+		tags: number[] | null;
+	}>('transaction_filters', { categories: null, tags: null });
 
 	// Safely unwrap data with fallbacks for the initial loading state
 	const rawCategories = $derived(appQuery.data?.categories ?? []);
@@ -32,8 +38,8 @@
 			.sort((a, b) => a.pathName.localeCompare(b.pathName))
 	);
 
-	// Initialize as empty, we will populate this via an effect once data loads
-	let selectedCategoryIds = new SvelteSet<number>();
+	// Initialize Set using persisted array if available
+	let selectedCategoryIds = new SvelteSet<number>(persistentFilters.value.categories ?? []);
 
 	let isCategoryFilterActive = $derived(
 		selectedCategoryIds.size > 0 && selectedCategoryIds.size < categoriesWithPath.length
@@ -68,8 +74,8 @@
 	// --- Tag Logic ---
 	let sortedTags = $derived([...rawTags].sort((a, b) => a.name.localeCompare(b.name)));
 
-	// Initialize as empty
-	let selectedTagIds = new SvelteSet<number>();
+	// Initialize Set using persisted array if available
+	let selectedTagIds = new SvelteSet<number>(persistentFilters.value.tags ?? []);
 
 	let isTagFilterActive = $derived(
 		selectedTagIds.size > 0 && selectedTagIds.size < sortedTags.length
@@ -99,18 +105,36 @@
 		selectedTagIds.clear();
 	}
 
-	// --- State Initialization ---
-	// Because data loading is asynchronous, we need to check all boxes
-	// the first time the data actually arrives.
+	// --- State Initialization & Syncing ---
 	let filtersInitialized = $state(false);
 
+	// 1. Initial Load: Check for saved filters vs default all
 	$effect(() => {
 		if (appQuery.data && !filtersInitialized) {
 			untrack(() => {
-				selectAllCategories();
-				selectAllTags();
+				// If it's the very first visit (null), apply the "Select All" default
+				if (persistentFilters.value.categories === null) {
+					selectAllCategories();
+				}
+
+				if (persistentFilters.value.tags === null) {
+					selectAllTags();
+				}
+
 				filtersInitialized = true;
 			});
+		}
+	});
+
+	// 2. Sync Set mutations back to the persistent store
+	$effect(() => {
+		// Wait until initialization is complete so we don't overwrite saved data prematurely
+		if (filtersInitialized) {
+			// Iterating over the SvelteSets triggers reactivity naturally
+			persistentFilters.value = {
+				categories: Array.from(selectedCategoryIds),
+				tags: Array.from(selectedTagIds)
+			};
 		}
 	});
 
