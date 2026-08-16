@@ -108,6 +108,13 @@
 	// --- State Initialization & Syncing ---
 	let filtersInitialized = $state(false);
 
+	// Track known IDs using SvelteSets, mutated in-place for performance
+	let knownCategoryIds = new SvelteSet<number>();
+	let isKnownCategoriesInitialized = false;
+
+	let knownTagIds = new SvelteSet<number>();
+	let isKnownTagsInitialized = false;
+
 	// 1. Initial Load: Check for saved filters vs default all
 	$effect(() => {
 		if (appQuery.data && !filtersInitialized) {
@@ -136,6 +143,64 @@
 				tags: Array.from(selectedTagIds)
 			};
 		}
+	});
+
+	// 3. Auto-select new categories if everything was selected previously
+	$effect(() => {
+		if (!filtersInitialized) return;
+		const currentCatIds = categoriesWithPath.map((c) => c.id);
+
+		untrack(() => {
+			if (isKnownCategoriesInitialized) {
+				const newIds = currentCatIds.filter((id) => !knownCategoryIds.has(id));
+				if (newIds.length > 0) {
+					let allKnownSelected = true;
+					for (const id of knownCategoryIds) {
+						if (!selectedCategoryIds.has(id)) {
+							allKnownSelected = false;
+							break;
+						}
+					}
+					if (allKnownSelected) {
+						newIds.forEach((id) => selectedCategoryIds.add(id));
+					}
+				}
+			}
+
+			// Sync the set in-place instead of re-instantiating
+			knownCategoryIds.clear();
+			currentCatIds.forEach((id) => knownCategoryIds.add(id));
+			isKnownCategoriesInitialized = true;
+		});
+	});
+
+	// 4. Auto-select new tags if everything was selected previously
+	$effect(() => {
+		if (!filtersInitialized) return;
+		const currentTagIds = sortedTags.map((t) => t.id);
+
+		untrack(() => {
+			if (isKnownTagsInitialized) {
+				const newIds = currentTagIds.filter((id) => !knownTagIds.has(id));
+				if (newIds.length > 0) {
+					let allKnownSelected = true;
+					for (const id of knownTagIds) {
+						if (!selectedTagIds.has(id)) {
+							allKnownSelected = false;
+							break;
+						}
+					}
+					if (allKnownSelected) {
+						newIds.forEach((id) => selectedTagIds.add(id));
+					}
+				}
+			}
+
+			// Sync the set in-place instead of re-instantiating
+			knownTagIds.clear();
+			currentTagIds.forEach((id) => knownTagIds.add(id));
+			isKnownTagsInitialized = true;
+		});
 	});
 
 	// --- Filtering & Pagination ---
