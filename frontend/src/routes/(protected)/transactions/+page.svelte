@@ -10,7 +10,7 @@
 
 	const appQuery = useAppData();
 
-	// Use null to represent "first visit / no saved filters"
+	// Use null to represent "first visit / no saved filters" OR "everything is selected"
 	const persistentFilters = createPersistedState<{
 		categories: number[] | null;
 		tags: number[] | null;
@@ -108,18 +108,17 @@
 	// --- State Initialization & Syncing ---
 	let filtersInitialized = $state(false);
 
-	// Track known IDs using SvelteSets, mutated in-place for performance
 	let knownCategoryIds = new SvelteSet<number>();
 	let isKnownCategoriesInitialized = false;
 
 	let knownTagIds = new SvelteSet<number>();
 	let isKnownTagsInitialized = false;
 
-	// 1. Initial Load: Check for saved filters vs default all
-	$effect(() => {
+	// 1. Initial Load: Use $effect.pre so it sets up before the DOM paints (prevents flickering)
+	$effect.pre(() => {
 		if (appQuery.data && !filtersInitialized) {
 			untrack(() => {
-				// If it's the very first visit (null), apply the "Select All" default
+				// If null (first visit or "all selected" state), apply the "Select All"
 				if (persistentFilters.value.categories === null) {
 					selectAllCategories();
 				}
@@ -135,20 +134,25 @@
 
 	// 2. Sync Set mutations back to the persistent store
 	$effect(() => {
-		// Wait until initialization is complete so we don't overwrite saved data prematurely
 		if (filtersInitialized) {
-			// Iterating over the SvelteSets triggers reactivity naturally
+			const catArray = Array.from(selectedCategoryIds);
+			const tagArray = Array.from(selectedTagIds);
+
+			// If everything is selected, save `null` instead of an array of all IDs.
+			// This ensures cross-navigation additions default to "select all".
 			persistentFilters.value = {
-				categories: Array.from(selectedCategoryIds),
-				tags: Array.from(selectedTagIds)
+				categories: catArray.length === categoriesWithPath.length ? null : catArray,
+				tags: tagArray.length === sortedTags.length ? null : tagArray
 			};
 		}
 	});
 
-	// 3. Auto-select new categories if everything was selected previously
+	// 3. Auto-select new categories if everything was selected previously (in-place modal additions)
 	$effect(() => {
-		if (!filtersInitialized) return;
+		// Read derived dependencies BEFORE any early return so Svelte always tracks them
 		const currentCatIds = categoriesWithPath.map((c) => c.id);
+
+		if (!filtersInitialized) return;
 
 		untrack(() => {
 			if (isKnownCategoriesInitialized) {
@@ -167,17 +171,18 @@
 				}
 			}
 
-			// Sync the set in-place instead of re-instantiating
 			knownCategoryIds.clear();
 			currentCatIds.forEach((id) => knownCategoryIds.add(id));
 			isKnownCategoriesInitialized = true;
 		});
 	});
 
-	// 4. Auto-select new tags if everything was selected previously
+	// 4. Auto-select new tags if everything was selected previously (in-place modal additions)
 	$effect(() => {
-		if (!filtersInitialized) return;
+		// Read derived dependencies BEFORE any early return so Svelte always tracks them
 		const currentTagIds = sortedTags.map((t) => t.id);
+
+		if (!filtersInitialized) return;
 
 		untrack(() => {
 			if (isKnownTagsInitialized) {
@@ -196,7 +201,6 @@
 				}
 			}
 
-			// Sync the set in-place instead of re-instantiating
 			knownTagIds.clear();
 			currentTagIds.forEach((id) => knownTagIds.add(id));
 			isKnownTagsInitialized = true;
